@@ -1,0 +1,23 @@
+{
+  "name": "agentic-delivery",
+  "version": "1.0.0",
+  "description": "End-to-end delivery orchestration for Claude Code — multi-agent workflow with intent recognition, design, planning, implementation, review, and documentation",
+  "author": {
+    "name": "xhy",
+    "email": "xhyovo@qq.com"
+  },
+  "keywords": [
+    "delivery",
+    "orchestration",
+    "multi-agent",
+    "workflow",
+    "subagent",
+    "agentic",
+    "software-development",
+    "code-review",
+    "planning"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/xhyqaq/agentic-delivery",
+  "repository": "https://github.com/xhyqaq/agentic-delivery"
+}
