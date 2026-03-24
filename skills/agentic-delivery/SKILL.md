@@ -9,6 +9,8 @@ End-to-end delivery orchestration. Main agent orchestrates, subagents execute.
 
 **Announce at start:** "I'm using the agentic-delivery skill to handle this task."
 
+**CRITICAL:** Read `runtime-policies.md` for enforcement rules. These are HARD RULES that cannot be bypassed.
+
 ## The Rule
 
 **Identify intent FIRST, then route to the correct path.** Do not start coding before completing the appropriate upstream stages.
@@ -69,7 +71,19 @@ Main agent writes detailed plan:
 
 ### Stage 4: Code Implementation
 
-Dispatch one Implementer subagent per task.
+**YOU MUST dispatch one Implementer subagent per task. DO NOT implement tasks inline.**
+
+**Enforcement rules:**
+1. When the plan contains distinct frontend and backend slices, you MUST dispatch dedicated subagents with explicit ownership
+2. When tasks are marked as independent/parallel, you MUST dispatch them concurrently
+3. You MUST NOT write code yourself — only coordinate subagents
+4. If subagent dispatch is unavailable (tool error, platform limitation), STOP and report the blocker to the user. DO NOT silently degrade to single-agent mode.
+
+**Pre-execution validation:**
+Before entering Stage 4, verify:
+- Subagent dispatch capability is available (spawn_agent or Task tool)
+- `implementation-plan.md` exists and contains tasks
+- You have read and parsed all tasks from the plan
 
 **Orchestrator responsibilities:**
 1. Extract ALL tasks with full text from plan (do NOT make subagent read plan file)
@@ -92,6 +106,8 @@ Dispatch one Implementer subagent per task.
 | BLOCKED | Assess: context gap → supplement; too complex → split task; plan wrong → back to Stage 3 |
 
 **REQUIRED SUB-SKILL:** Use subagent-driven-development skill for dispatch pattern.
+
+**ENFORCEMENT:** See `runtime-policies.md` § Required Subagents for failure handling and violation detection.
 
 ### Stage 5: Review Loop
 
@@ -201,6 +217,8 @@ Skills use Claude Code tool names. See `references/codex-tools.md` for Codex equ
 
 **Never:**
 - Start coding before completing upstream stages (for large features)
+- **Implement tasks inline when executing Stage 4 (MUST use subagents)**
+- **Silently fall back to single-agent mode without reporting blockers**
 - Skip review stages
 - Parallelize tasks that share files
 - Pass full context to subagents
