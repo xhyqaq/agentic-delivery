@@ -148,6 +148,10 @@ Main agent compiles delivery report:
 - Review rounds and fix count
 - All artifacts produced (docs, files changed)
 - File change list with descriptions
+- **Token Usage Report** (see token-monitor.md):
+  - Estimated token consumption by stage (Spec, Plan, Implementer, Reviewers)
+  - Total input tokens and cost savings from optimizations
+  - Optimization opportunities identified
 
 ## Fast Path (Small Change)
 

@@ -33,6 +33,12 @@ Task tool (general-purpose):
     Approve unless there are serious gaps — missing requirements from the spec,
     contradictory steps, placeholder content, or tasks so vague they can't be acted on.
 
+    **Code detail calibration:**
+    - ✅ Plan provides: Interface signatures, test expectations, high-level approach
+    - ❌ Plan should NOT: Include complete function implementations line-by-line
+    - Exception: OK to show complete code when demonstrating unfamiliar pattern or library usage
+    - If plan has full implementations everywhere, flag as "Over-specified - provides complete code instead of contracts"
+
     ## Output Format
 
     ## Plan Review

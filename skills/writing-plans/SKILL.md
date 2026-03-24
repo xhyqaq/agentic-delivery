@@ -15,8 +15,11 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
-- (User preferences for plan location override this default)
+**Save plans to:** `docs/<project>/<feature>/implementation-plan.md`
+- Default format: `docs/<project-name>/<feature-name>/implementation-plan.md`
+- Automatically detect project name from git root or current directory
+- User preferences (from project CLAUDE.md or ~/.claude/config) override this default
+- Legacy path `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` still supported for compatibility
 
 ## Scope Check
 
@@ -70,42 +73,65 @@ This structure informs the task decomposition. Each task should produce self-con
 - Modify: `exact/path/to/existing.py:123-145`
 - Test: `tests/exact/path/to/test.py`
 
-- [ ] **Step 1: Write the failing test**
-
+**Interface Contract:**
 ```python
-def test_specific_behavior():
-    result = function(input)
-    assert result == expected
+def function(input: InputType) -> OutputType:
+    """
+    Purpose: What this function does and why
+
+    Args:
+        input: Description of input expectations
+
+    Returns:
+        Description of output format
+
+    Raises:
+        SpecificError: When and why
+    """
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: FAIL with "function not defined"
-
-- [ ] **Step 3: Write minimal implementation**
-
+**Test Expectations:**
 ```python
-def function(input):
-    return expected
+# Test case 1: Normal case
+function(valid_input) → expected_output
+
+# Test case 2: Edge case
+function(edge_input) → edge_output
+
+# Test case 3: Error case
+function(invalid_input) → raises SpecificError
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+**Steps:**
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
+- [ ] **Step 1: Write failing tests based on contract**
+  Run: `pytest tests/path/test.py::test_name -v`
+  Expected: FAIL with "function not defined"
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 2: Implement function to satisfy contract**
+  Implementation approach: [High-level strategy, e.g., "Use caching decorator for performance"]
 
-```bash
-git add tests/path/test.py src/path/file.py
-git commit -m "feat: add specific feature"
-```
+- [ ] **Step 3: Verify tests pass**
+  Run: `pytest tests/path/test.py::test_name -v`
+  Expected: PASS (all 3 test cases)
+
+- [ ] **Step 4: Commit**
+  ```bash
+  git add tests/path/test.py src/path/file.py
+  git commit -m "feat: add specific feature"
+  ```
 ````
 
 ## Remember
 - Exact file paths always
-- Complete code in plan (not "add validation")
+- **Interface contracts and test expectations** (NOT complete implementations)
+  - Define what functions should do (signature + behavior)
+  - Show test expectations (input → expected output)
+  - Let implementer figure out HOW to achieve it
+- **Provide code ONLY when**:
+  - Demonstrating a specific pattern to follow
+  - Showing exact API usage for unfamiliar libraries
+  - Defining type interfaces or data structures
 - Exact commands with expected output
 - Reference relevant skills with @ syntax
 - DRY, YAGNI, TDD, frequent commits
@@ -126,20 +152,11 @@ After writing the complete plan:
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After saving the plan, automatically proceed to subagent-driven development:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Starting subagent-driven execution..."**
 
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
-
-**Which approach?"**
-
-**If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use subagent-driven-development skill
-- Fresh subagent per task + two-stage review
-
-**If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use executing-plans skill *(external, not included)*
-- Batch execution with checkpoints for review
+**REQUIRED SUB-SKILL:** Invoke subagent-driven-development skill to execute the plan.
+- Fresh subagent per task
+- Two-stage review (spec compliance → code quality)
+- Fast iteration with isolated contexts

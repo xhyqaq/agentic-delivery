@@ -124,8 +124,11 @@ digraph brainstorming {
 
 **Documentation:**
 
-- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
-  - (User preferences for spec location override this default)
+- Write the validated design (spec) to `docs/<project>/<feature>/design-spec.md`
+  - Default format: `docs/<project-name>/<feature-name>/design-spec.md`
+  - Automatically detect project name from git root or current directory
+  - User preferences (from project CLAUDE.md or ~/.claude/config) override this default
+  - Legacy path `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` still supported for compatibility
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git
 
