@@ -75,9 +75,22 @@ digraph brainstorming {
 - Check out the current project state first (files, docs, recent commits)
 - Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
 - If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
-- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- For appropriately-scoped projects, use **smart questioning strategy** to refine the idea:
+  - **Analyze dependencies first**: Identify which questions depend on others vs. which are independent
+  - **Batch independent questions**: Group 1-4 related/independent questions using AskUserQuestion tool
+  - **Sequential for dependent questions**: Ask one at a time when later questions depend on earlier answers
+  - **Set expectations**: Tell user upfront "I have X questions in Y groups to clarify requirements"
+  - **When to batch** (1-4 questions per group):
+    - Questions are independent or loosely related
+    - All are multiple choice or straightforward
+    - Belong to the same feature domain
+    - No need to adjust question path based on answers
+  - **When to ask individually**:
+    - Later questions strongly depend on earlier answers
+    - Question is complex and needs deep exploration
+    - Need to dynamically adjust questioning path
+    - User's answer might open new question branches
 - Prefer multiple choice questions when possible, but open-ended is fine too
-- Only one question per message - if a topic needs more exploration, break it into multiple questions
 - Focus on understanding: purpose, constraints, success criteria
 
 **Exploring approaches:**
@@ -137,12 +150,63 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 ## Key Principles
 
-- **One question at a time** - Don't overwhelm with multiple questions
+- **Smart questioning** - Batch independent questions (1-4/group), sequential for dependent ones
+- **Set expectations** - Tell user upfront how many question groups to expect
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
 - **Explore alternatives** - Always propose 2-3 approaches before settling
 - **Incremental validation** - Present design, get approval before moving on
 - **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Questioning Strategy Examples
+
+**Example 1: Independent Questions (Batch them)**
+```
+User wants: "Add a skills marketplace to the community"
+
+❌ BAD (7 separate rounds):
+Round 1: "Need approval for new skills?"
+Round 2: "How to sort the list?"
+Round 3: "Can users upload multiple skills?"
+... (4 more rounds)
+
+✅ GOOD (2 batched rounds):
+Round 1 (4 questions):
+- Skills approval mechanism?
+- List sorting and pagination?
+- User-skills relationship?
+- Edit/delete permissions?
+
+Round 2 (3 questions):
+- Community features (like/favorite/comment)?
+- Detail page display style?
+- Admin management needed?
+```
+
+**Example 2: Dependent Questions (Ask sequentially)**
+```
+User wants: "Add authentication"
+
+✅ CORRECT (Sequential):
+Q1: "Which auth method?" → User: "JWT"
+Q2: "Store JWT where?" → User: "Cookie"
+Q3: "Cookie settings (httpOnly/secure)?" → User: "Both"
+
+❌ WRONG (Batch):
+Asking Q2 and Q3 before knowing Q1's answer wastes time
+```
+
+**Example 3: Mixed Scenario (Hybrid approach)**
+```
+Batch Group 1 (independent core questions):
+- Feature scope?
+- Target users?
+- Success metrics?
+
+Then Sequential (dependent on answers):
+Q: "You mentioned real-time updates, WebSocket or SSE?"
+Q: "For large user base, need caching strategy?"
+```
 
 ## Visual Companion
 
