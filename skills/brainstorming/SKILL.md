@@ -146,6 +146,15 @@ After the spec review loop passes, ask the user to review the written spec befor
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 
+**Why user approval is required at this stage:**
+- Design defines "what to build" → strategic decision
+- User must confirm requirements and approach before implementation
+- This is the **only user approval gate** in the pipeline
+
+**Next stages (Plan, Implementation) do NOT require user approval:**
+- Plan (Stage 4): Mechanical breakdown, plan review ensures quality
+- Implementation (Stage 5): Executes approved design, checkpoint commits allow rollback
+
 **Implementation:**
 
 - Invoke the writing-plans skill to create a detailed implementation plan

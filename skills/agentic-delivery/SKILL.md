@@ -116,6 +116,26 @@ Main agent writes detailed plan:
 
 **REQUIRED SUB-SKILL:** Follow writing-plans skill.
 
+### Stage 4 → Stage 5 Transition
+
+**No user approval gate.** After plan review passes (or issues fixed), automatically proceed to Stage 5.
+
+**Rationale:**
+- Design (Stage 3) already user-approved → direction confirmed
+- Plan review ensures quality → completeness, consistency verified
+- Plan is mechanical breakdown → no strategic decisions
+- User can interrupt anytime (live session)
+- Checkpoint commits allow rollback (low risk)
+
+**Announce transition:**
+```
+Plan review passed ✓
+Starting Stage 5: Implementation
+Dispatching N implementers for parallel execution...
+```
+
+**Exception:** If user explicitly requests "let me review the plan first" before Stage 4 completes, pause and wait. But this is **not default behavior**.
+
 ### Stage 5: Code Implementation
 
 **YOU MUST dispatch one Implementer subagent per task. DO NOT implement tasks inline.**

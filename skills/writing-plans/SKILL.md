@@ -158,19 +158,42 @@ After writing the complete plan:
 
 1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
    - Provide: path to the plan document, path to spec document
-2. If ❌ Issues Found: fix the issues and present the updated plan to the user for approval
-3. If ✅ Approved: proceed to execution handoff
+
+2. Review outcome:
+   - **If ✅ Approved:** Proceed to execution handoff (see below)
+   - **If ❌ Issues Found:** Fix the issues and proceed to execution handoff
 
 **Review loop guidance:**
 - Plan review is **1 round only** — no re-dispatch cycle
-- If the reviewer finds issues, fix them and let the user decide whether to proceed
-- Plans are validated again during implementation; over-reviewing at this stage wastes tokens and subagent slots
+- If the reviewer finds issues, fix them and proceed — **do NOT wait for user approval**
+- Plans are validated during implementation via checkpoint reviews; over-reviewing wastes tokens
+
+**Rationale for no user gate:**
+- Design spec (Stage 3) already user-approved → direction confirmed
+- Plan review ensures quality → no new decisions being made
+- Plan is mechanical breakdown of design → execution details, not strategy
+- User can interrupt anytime during execution (live session)
+
+---
 
 ## Execution Handoff
 
-After saving the plan, automatically proceed to subagent-driven development:
+**No user approval required.** After plan review completes (approved or fixed), automatically proceed to execution.
 
-**"Plan complete and saved to `docs/<project>/<feature>/implementation-plan.md`. Starting subagent-driven execution..."**
+**Announce transition clearly:**
+```
+Plan review passed ✓
+Plan saved to `docs/<project>/<feature>/implementation-plan.md`
+
+Starting Stage 5: Implementation
+Dispatching implementers:
+- Backend: Tasks 1-5 (skills subdomain, APIs, migration)
+- Frontend: Tasks 6-10 (market page, user dashboard, navigation)
+```
+
+Then invoke `subagent-driven-development` skill to dispatch implementers.
+
+**Exception:** If user explicitly says "let me review the plan first" before Stage 4 completes, pause and wait. But this is not the default behavior.
 
 **REQUIRED SUB-SKILL:** Invoke subagent-driven-development skill to execute the plan.
 - Fresh subagent per task
