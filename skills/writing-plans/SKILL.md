@@ -36,6 +36,8 @@ Before defining tasks, map out which files will be created or modified and what 
 
 This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
 
+When marking tasks as parallel, also check for **indirect overlaps**: lock files, barrel exports, auto-generated files. These can cause merge conflicts even when source files don't overlap.
+
 ## Bite-Sized Task Granularity
 
 **Each step is one action (2-5 minutes):**
@@ -43,7 +45,7 @@ This structure informs the task decomposition. Each task should produce self-con
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
 - "Run the tests and make sure they pass" - step
-- "Commit" - step
+- "Create a checkpoint commit" - step
 
 ## Plan Document Header
 
@@ -115,7 +117,7 @@ function(invalid_input) → raises SpecificError
   Run: `pytest tests/path/test.py::test_name -v`
   Expected: PASS (all 3 test cases)
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Create checkpoint commit**
   ```bash
   git add tests/path/test.py src/path/file.py
   git commit -m "feat: add specific feature"
@@ -133,6 +135,8 @@ function(invalid_input) → raises SpecificError
   - Showing exact API usage for unfamiliar libraries
   - Defining type interfaces or data structures
 - Exact commands with expected output
+- In execution plans, "commit" means a review checkpoint commit unless explicitly stated otherwise
+- Task checkboxes (`- [ ]`) are used for cross-session progress tracking. The orchestrator marks tasks `[x]` after review passes
 - Reference relevant skills with @ syntax
 - DRY, YAGNI, TDD, frequent commits
 
@@ -142,19 +146,19 @@ After writing the complete plan:
 
 1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
    - Provide: path to the plan document, path to spec document
-2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
+2. If ❌ Issues Found: fix the issues and present the updated plan to the user for approval
 3. If ✅ Approved: proceed to execution handoff
 
 **Review loop guidance:**
-- Same agent that wrote the plan fixes it (preserves context)
-- If loop exceeds 3 iterations, surface to human for guidance
-- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+- Plan review is **1 round only** — no re-dispatch cycle
+- If the reviewer finds issues, fix them and let the user decide whether to proceed
+- Plans are validated again during implementation; over-reviewing at this stage wastes tokens and subagent slots
 
 ## Execution Handoff
 
 After saving the plan, automatically proceed to subagent-driven development:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Starting subagent-driven execution..."**
+**"Plan complete and saved to `docs/<project>/<feature>/implementation-plan.md`. Starting subagent-driven execution..."**
 
 **REQUIRED SUB-SKILL:** Invoke subagent-driven-development skill to execute the plan.
 - Fresh subagent per task

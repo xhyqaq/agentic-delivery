@@ -9,7 +9,7 @@ Update project documentation after a task completes review. Ensures every code c
 
 ## When to Use
 
-- Called by `agentic-delivery` at Stage 5, after each task's review loop passes and commit is done
+- Called by `agentic-delivery` at Stage 6, after each task's review loop passes
 - Called after fix commits that introduce significant changes
 
 ## Input (Minimum Context)

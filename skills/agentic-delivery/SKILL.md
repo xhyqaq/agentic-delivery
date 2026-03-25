@@ -15,7 +15,39 @@ End-to-end delivery orchestration. Main agent orchestrates, subagents execute.
 
 **Identify intent FIRST, then route to the correct path.** Do not start coding before completing the appropriate upstream stages.
 
-## Stage 0: Intent Recognition
+## Authority and Conflict Resolution
+
+`agentic-delivery` is the orchestration shell for this workflow. It decides routing, stage transitions, and the input/output contract for each stage. It does **not** redefine the internal methods of downstream stage-owner skills.
+
+**Priority order when instructions conflict:**
+1. `runtime-policies.md`
+2. Stage-owner skill for the current stage
+3. `agentic-delivery`
+4. Prompt templates
+5. Explanatory docs (`docs/design`, `README.md`, examples)
+
+**Stage owners:**
+- Stage 3 (Requirement Analysis & Design) → `brainstorming`
+- Stage 4 (Implementation Plan) → `writing-plans`
+- Stage 5-6 (Implementation + Review Loop) → `subagent-driven-development`
+- Review fix routing → `review-fix-strategy`
+- Bug path → `systematic-debugging`
+
+## Git Branching Strategy
+
+**Full Pipeline:**
+- After Stage 1 intent classification, create a feature branch: `feature/<feature-name>`
+- All implementation and doc changes happen on this branch
+- Stage 7 summary is the last action on the branch
+- Branch integration (merge, PR, or cleanup) is handled by `finishing-a-development-branch` skill
+
+**Fast Path / Debug Path:**
+- For single-file changes: work on current branch (typically already a feature branch)
+- If on main/master: create a branch first — never commit directly to main
+
+**Parallel implementers:** All work on the same feature branch. Since parallel tasks have zero file overlap (enforced at plan time), their commits will not conflict.
+
+## Stage 1: Intent Recognition
 
 Analyze the user's request and classify:
 
@@ -25,11 +57,14 @@ Analyze the user's request and classify:
 | Small Change | Single file/function, clear scope | Fast Path (Stage 5-7 only) |
 | Bug Fix | Explicit error behavior, needs root cause analysis | Debug Path |
 
-**Cross-session reuse:** Check `docs/<project>/<feature>/` for existing artifacts. If `design-spec.md` exists → skip Stage 3. If `implementation-plan.md` exists → skip Stage 4.
+**Cross-session reuse:** Check `docs/<project>/<feature>/` for existing artifacts:
+- `design-spec.md` exists → skip Stage 3
+- `implementation-plan.md` exists → skip Stage 4
+- `implementation-plan.md` has tasks marked `[x]` → skip completed tasks in Stage 5, resume from first unchecked task
 
 ## Full Pipeline (Large Feature)
 
-### Stage 1: Doc Scan
+### Stage 2: Doc Scan
 
 Dispatch `doc-scanner` subagent to generate project context.
 
@@ -37,12 +72,14 @@ Dispatch `doc-scanner` subagent to generate project context.
 **Output:** `docs/<project>/project-context.md`
 **Lifecycle:** Dispose after completion.
 
-### Stage 2: Requirement Analysis & Design
+### Stage 3: Requirement Analysis & Design
 
 Execute brainstorming process (main agent, NOT subagent):
 
 1. Read `project-context.md`
-2. Ask ONE question at a time to clarify requirements
+2. Follow the `brainstorming` questioning strategy to clarify requirements
+   - Batch independent questions when possible
+   - Ask sequentially only when later questions depend on earlier answers
 3. Propose 2-3 approaches with trade-offs, give recommendation
 4. Present design in sections, get user approval per section
 5. Write to `docs/<project>/<feature>/design-spec.md`
@@ -50,8 +87,9 @@ Execute brainstorming process (main agent, NOT subagent):
 7. User reviews written spec before proceeding
 
 **REQUIRED SUB-SKILL:** Follow brainstorming skill.
+`agentic-delivery` routes into this stage; `brainstorming` owns the detailed questioning method.
 
-### Stage 3: Implementation Plan
+### Stage 4: Implementation Plan
 
 Main agent writes detailed plan:
 
@@ -59,7 +97,7 @@ Main agent writes detailed plan:
 2. Decompose into bite-sized tasks (2-5 min each)
 3. Each task: file paths, steps, test commands, expected results, commit message
 4. Mark task dependencies (parallel vs sequential)
-5. Dispatch Plan Reviewer subagent → review loop (max 3 rounds)
+5. Dispatch Plan Reviewer subagent → if issues found, fix and escalate to user
 
 **Parallel constraint (HARD RULE):**
 > Tasks sharing ANY file MUST be sequential. Only tasks with zero file overlap may be parallel.
@@ -69,7 +107,7 @@ Main agent writes detailed plan:
 
 **REQUIRED SUB-SKILL:** Follow writing-plans skill.
 
-### Stage 4: Code Implementation
+### Stage 5: Code Implementation
 
 **YOU MUST dispatch one Implementer subagent per task. DO NOT implement tasks inline.**
 
@@ -80,7 +118,7 @@ Main agent writes detailed plan:
 4. If subagent dispatch is unavailable (tool error, platform limitation), STOP and report the blocker to the user. DO NOT silently degrade to single-agent mode.
 
 **Pre-execution validation:**
-Before entering Stage 4, verify:
+Before entering Stage 5, verify:
 - Subagent dispatch capability is available (spawn_agent or Task tool)
 - `implementation-plan.md` exists and contains tasks
 - You have read and parsed all tasks from the plan
@@ -100,16 +138,23 @@ Before entering Stage 4, verify:
 
 | Status | Action |
 |--------|--------|
-| DONE | Proceed to Stage 5 review |
+| DONE | Proceed to Stage 6 review |
 | DONE_WITH_CONCERNS | Evaluate concerns, then review or address first |
 | NEEDS_CONTEXT | Provide missing context, re-dispatch |
-| BLOCKED | Assess: context gap → supplement; too complex → split task; plan wrong → back to Stage 3 |
+| BLOCKED | Assess: context gap → supplement; too complex → split task; plan wrong → back to Stage 4 |
 
 **REQUIRED SUB-SKILL:** Use subagent-driven-development skill for dispatch pattern.
 
+**After parallel batch completes:**
+If multiple implementers ran in parallel, verify their commits merge cleanly:
+1. Check for merge conflicts (lock files, barrel exports, auto-generated files)
+2. Resolve mechanical conflicts (main agent, not subagent)
+3. Run project test suite to verify integration
+4. If non-trivial conflicts exist, the plan incorrectly classified tasks as parallel — fix plan or escalate
+
 **ENFORCEMENT:** See `runtime-policies.md` § Required Subagents for failure handling and violation detection.
 
-### Stage 5: Review Loop
+### Stage 6: Review Loop
 
 Per-task, in strict order:
 
@@ -121,7 +166,7 @@ Implementer returns DONE
        │
        ├── Pass → Code Quality Review (subagent)
        │              │
-       │              ├── Pass → Commit → Doc Sync → next task
+       │              ├── Pass → Mark task complete → Doc Sync → next task
        │              └── Fail → Fix (see review-fix-strategy) → re-review
        │
        └── Fail → Fix (see review-fix-strategy) → re-review
@@ -132,14 +177,15 @@ Implementer returns DONE
 **Max rounds:** 3 per review stage. Exceeds → escalate to user.
 
 **Commit strategy:**
-- Commit immediately after all reviews pass for each task
-- Fix commits are separate from implementation commits
+- Implementer creates a checkpoint commit after implementation and local verification
+- Each review-driven fix creates a separate fix commit
+- A task is complete only after Spec Compliance and Code Quality both pass
 
-**After commit:** Dispatch `doc-syncer` subagent to update `docs/<project>/<feature>/changelog.md`.
+**After reviews pass:** Dispatch `doc-syncer` subagent to update `docs/<project>/<feature>/changelog.md`.
 
 **REQUIRED SUB-SKILL:** Use review-fix-strategy for fix decisions.
 
-### Stage 6: Summary
+### Stage 7: Summary
 
 Main agent compiles delivery report:
 
@@ -148,27 +194,28 @@ Main agent compiles delivery report:
 - Review rounds and fix count
 - All artifacts produced (docs, files changed)
 - File change list with descriptions
-- **Token Usage Report** (see token-monitor.md):
-  - Estimated token consumption by stage (Spec, Plan, Implementer, Reviewers)
-  - Total input tokens and cost savings from optimizations
-  - Optimization opportunities identified
+- Lessons learned or optimization opportunities
 
 ## Fast Path (Small Change)
 
 ```
 Intent → Small Change
-  → Stage 4: Implement (main agent can do directly, subagent optional)
-  → Stage 5: Code Quality Review only (skip Spec Compliance)
-  → Commit → Brief summary
+  → Stage 5: Implement (single task: main agent directly; 2+ tasks: dispatch subagents per runtime-policies)
+  → Stage 6: Code Quality Review only (skip Spec Compliance)
+  → Doc Sync (if changelog exists for this feature)
+  → Stage 7: Brief summary
 ```
+
+Fast Path is for **single-task** changes. If the change turns out to need 2+ tasks, escalate to Full Pipeline or dispatch subagents per runtime-policies.
 
 ## Debug Path (Bug Fix)
 
 ```
 Intent → Bug Fix
   → Systematic Debugging (main agent, 4-phase)
-  → Stage 5: Code Quality Review only
-  → Commit → Summary with root cause explanation
+  → Stage 6: Code Quality Review only
+  → Doc Sync (if changelog exists for this feature)
+  → Stage 7: Summary with root cause explanation
 ```
 
 **REQUIRED SUB-SKILL:** Use systematic-debugging skill.
@@ -184,9 +231,9 @@ Intent → Bug Fix
 | Plan Reviewer | Plan path, design doc path | Code details |
 | Implementer (backend) | Task text, backend conventions, API schema | Frontend code/conventions, other tasks |
 | Implementer (frontend) | Task text, frontend conventions, API schema | Backend code/conventions, other tasks |
-| Spec Compliance Reviewer | Task requirements, implementer report | Other tasks, global context |
+| Spec Compliance Reviewer | Task requirements, implementer report, git diff (checkpoint commit) | Other tasks, global context |
 | Code Quality Reviewer | Git diff (BASE_SHA..HEAD_SHA), task description | Requirements doc, other tasks |
-| Fix Agent | Review report + code (Minor) or spec only (Critical) | Other tasks, global context |
+| Fix Agent | Review report + relevant files from the latest checkpoint (Minor) or spec only (Critical) | Other tasks, global context |
 | Doc Syncer | Task description, changed files, changelog template | Code details, review process |
 
 **Anti-patterns:**
@@ -221,7 +268,7 @@ Skills use Claude Code tool names. See `references/codex-tools.md` for Codex equ
 
 **Never:**
 - Start coding before completing upstream stages (for large features)
-- **Implement tasks inline when executing Stage 4 (MUST use subagents)**
+- **Implement tasks inline when executing Stage 5 (MUST use subagents)**
 - **Silently fall back to single-agent mode without reporting blockers**
 - Skip review stages
 - Parallelize tasks that share files
@@ -232,5 +279,5 @@ Skills use Claude Code tool names. See `references/codex-tools.md` for Codex equ
 **Always:**
 - Identify intent before acting
 - Check for existing docs (cross-session reuse)
-- Commit after each task's review passes
+- Create checkpoint commits before review; only mark a task complete after reviews pass
 - Escalate to user after 3 failed review rounds

@@ -32,11 +32,13 @@ Task tool (general-purpose):
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
     3. Verify implementation works
-    4. Commit your work
+    4. Create a checkpoint commit for your work
     5. Self-review (see below)
     6. Report back
 
     Work from: [directory]
+
+    The commit is a checkpoint for review and rollback, not final approval of the task.
 
     **While you work:** If you encounter something unexpected or unclear, **ask questions**.
     It's always OK to pause and clarify. Don't guess or make assumptions.
@@ -103,6 +105,7 @@ Task tool (general-purpose):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
     - What you implemented (or what you attempted, if blocked)
     - What you tested and test results
+    - Whether you created the checkpoint commit
     - Files changed
     - Self-review findings (if any)
     - Any issues or concerns

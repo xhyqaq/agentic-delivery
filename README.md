@@ -16,6 +16,8 @@ Agentic Delivery is a systematic approach to software development where the **ma
 
 This isn't just a tool—it's a **delivery methodology** embodied in 12 composable skills.
 
+Behavioral details live in the individual skills and `runtime-policies.md`. This README is an overview, not the source of truth for execution rules.
+
 ## Core Principles
 
 ### 1. Main Agent Orchestrates, Subagents Execute
@@ -118,7 +120,7 @@ See [docs/installation.md](docs/installation.md) for platform-specific guides.
    - Review design in digestible sections
    - Approve implementation plan
    - Watch subagents work autonomously
-   - Review and commit task by task
+   - Review task by task with implementation and fix checkpoints
 
 ## Example Workflows
 
@@ -128,7 +130,7 @@ User request → Intent: Large Feature
   → Doc Scan → Brainstorming → Write Plan
   → Dispatch Implementers (parallel where possible)
   → Two-stage review per task
-  → Commit → Doc Sync
+  → Mark task complete → Doc Sync
   → Summary report
 ```
 
@@ -137,7 +139,7 @@ User request → Intent: Large Feature
 User request → Intent: Small Change
   → Implement directly (main agent or subagent)
   → Code Quality Review only
-  → Commit → Brief summary
+  → Brief summary
 ```
 
 ### Bug Fix
@@ -145,7 +147,7 @@ User request → Intent: Small Change
 User request → Intent: Bug Fix
   → Systematic Debugging (4 phases)
   → Code Quality Review
-  → Commit → Root cause explanation
+  → Root cause explanation
 ```
 
 ## Documentation
@@ -170,6 +172,7 @@ If needed, install separately from [obra/superpowers](https://github.com/obra/su
 - **File Conflict Prevention**: Plan stage marks file overlaps, prevents parallel execution of conflicting tasks
 - **Stateless Subagents**: Fresh instance per dispatch via Claude Code's Task tool, no context carryover
 - **Document Standardization**: Fixed templates embedded in subagent prompts (project-context.md, design-spec.md, implementation-plan.md, changelog.md)
+- **Authority Model**: `runtime-policies.md` and the skills define behavior; design docs and README explain it
 
 ## License
 

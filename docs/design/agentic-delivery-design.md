@@ -2,6 +2,8 @@
 
 > 端到端交付编排系统，通过 multi-agent 架构实现规范化的需求分析、代码实现、质量保障和文档沉淀，并支持跨会话的知识积累。
 
+> 本文是说明性设计文档。实际行为与约束以 `skills/*.md` 和 `skills/agentic-delivery/runtime-policies.md` 为准；当本文与技能文件冲突时，应以技能文件为准。
+
 ---
 
 ## 1. 设计目标
@@ -24,6 +26,14 @@
 - **Subagent 执行具体任务**，每个 subagent 上下文隔离、职责单一
 - **文档驱动**：每个阶段的产出都是文档（spec、plan、changelog），文档即沟通协议
 - **Subagent 无状态**：每次 dispatch 都是全新实例，通过 prompt 注入上下文
+- **总编排器是薄壳**：`agentic-delivery` 只定义阶段切换与输入输出契约，阶段内部方法由 owner skill 负责
+
+**规范优先级：**
+1. `runtime-policies.md`
+2. 当前阶段的 owner skill
+3. `agentic-delivery`
+4. prompt template
+5. 设计文档与 README
 
 ### 2.2 Multi-Agent 角色清单
 
@@ -90,7 +100,8 @@
 │   ├─ Code Quality Reviewer       │
 │   ├─ Fix（分级策略，见 §5）        │
 │   └─ Doc Syncer                  │
-│ 每个 task review 通过后 commit    │
+│ 实现先 checkpoint commit，        │
+│ review 通过后记为完成             │
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
@@ -147,12 +158,18 @@
 
 **流程**（参考 superpowers/brainstorming）：
 1. 读取 Stage 2 产出的 project-context.md
-2. 每次向用户提一个问题，澄清需求
+2. 按 `brainstorming` 的提问策略澄清需求
+   - 独立问题可批量提问
+   - 有依赖关系的问题顺序提问
 3. 提出 2-3 种方案，分析 trade-offs，给出推荐
 4. 分段呈现设计，每段获取用户确认
 5. 编写设计文档到 `docs/<project>/<feature>/design-spec.md`
 6. Dispatch Spec Reviewer subagent 审查设计文档
 7. Review loop：最多 3 轮，未通过则上报用户
+
+**职责边界**：
+- `agentic-delivery` 负责进入 Stage 3、维护阶段输入输出契约
+- `brainstorming` 负责提问节奏、方案讨论和设计确认的方法
 
 **Spec Reviewer subagent 输入**：
 - 设计文档路径
@@ -179,7 +196,7 @@
 3. 每个 task 包含：涉及的文件路径、具体步骤、测试命令、预期结果、commit 信息
 4. 标注 task 之间的依赖关系（哪些可并行、哪些必须顺序）
 5. Dispatch Plan Reviewer subagent 审查
-6. Review loop：最多 3 轮
+6. 若有问题则修复后交由用户决定，不做循环
 
 **并行编排硬性约束**：
 > 如果两个 task 会修改同一个文件，则**禁止并行**，必须标记为顺序执行。
@@ -226,7 +243,7 @@
 - [ ] Step 2: 运行测试确认失败
 - [ ] Step 3: 编写最小实现
 - [ ] Step 4: 运行测试确认通过
-- [ ] Step 5: Commit
+- [ ] Step 5: 创建 checkpoint commit
 ```
 
 #### Stage 5: 代码实现
@@ -288,7 +305,7 @@ Implementer 返回 DONE
        │
        ├── 通过 → Code Quality Review（subagent）
        │              │
-       │              ├── 通过 → Commit → Doc Sync → 下一个 task
+       │              ├── 通过 → 标记 task 完成 → Doc Sync → 下一个 task
        │              │
        │              └── 不通过 → Fix（见分级策略 §5）→ 重新 Code Quality Review
        │
@@ -300,8 +317,9 @@ Implementer 返回 DONE
 **Review 上限**：每个阶段最多 3 轮。超过 3 轮 → 上报用户决策。
 
 **Commit 策略**：
-- 每个 task 的 review 全部通过后立即 commit
-- Fix 后也应 commit（fix commit 与原实现 commit 分开）
+- 实现完成并通过本任务本地验证后，先创建 implementation checkpoint commit
+- Review 发现问题后继续创建 fix commit，保留每轮修复检查点
+- 只有 Spec Compliance 和 Code Quality 都通过后，task 才算完成
 
 **Doc Syncer subagent**：
 - 在该 task review 全部通过后 dispatch
@@ -352,7 +370,7 @@ Implementer 返回 DONE
 Stage 1: 意图识别 → 判定为小需求
   │
   ▼
-Stage 5: 代码实现（主 agent 可直接实现，不强制 subagent）
+Stage 5: 代码实现（单 task 主 agent 可直接实现；2+ tasks 需派 subagent）
   │
   ▼
 Stage 6: Review（简化为单阶段）
@@ -360,12 +378,15 @@ Stage 6: Review（简化为单阶段）
   │  跳过 Spec Compliance Review（小需求无独立 spec）
   │
   ▼
-Commit → Stage 7: 简要总结
+Doc Sync（如 changelog 存在则更新）
+  │
+  ▼
+Stage 7: 简要总结
 ```
 
 **简化点**：
 - 跳过 Stage 2（文档扫描）、Stage 3（brainstorming）、Stage 4（plan 编写）
-- 实现阶段主 agent 可以自己做，不强制派 subagent
+- 实现阶段如果只有 1 个 task，主 agent 可以自己做；2+ tasks 需派 subagent
 - Review 只做 Code Quality，不做 Spec Compliance
 
 ### 3.4 调试路径（Bug 修复）
@@ -387,7 +408,10 @@ Systematic Debugging（主 agent 执行）
 Stage 6: Review（同小需求，单阶段 Code Quality Review）
   │
   ▼
-Commit → Stage 7: 简要总结（含根因分析说明）
+Doc Sync（如 changelog 存在则更新）
+  │
+  ▼
+Stage 7: 简要总结（含根因分析说明）
 ```
 
 ---
@@ -749,3 +773,20 @@ skills/
 | 问题 | 说明 |
 |------|------|
 | Skills 文件存放位置 | `~/.claude/skills/`（全局）还是项目级别，待决定 |
+
+---
+
+## 12. 已知限制与未来改进
+
+以下为设计审计中识别的已知限制，当前接受为合理折中，后续迭代中按需改进。
+
+| 问题 | 当前状态 | 说明 |
+|------|----------|------|
+| Checkpoint commit 回滚策略 | 手动处理 | Critical review 时需要 orchestrator 或用户手动 `git revert` checkpoint commit |
+| 测试权责分配 | 部分定义 | Implementer 负责 task 级别单测；集成测试和全回归测试的权责待明确层次化 |
+| Stage 5 中途需求变更 | 手动回退 | 用户需要手动决定回到 Stage 4 重新规划，系统不自动检测 |
+| 特性放弃/回滚策略 | 手动 git 操作 | 放弃特性时需要手动清理 commits、文档和分支 |
+| 规模限制指导 | 软性建议 | 建议每 session ≤10 tasks；超过时建议拆分为子特性，但无硬性阻断 |
+| 依赖管理流程 | 隐式处理 | Implementer 可自行安装依赖，但建议在 plan 中预声明新依赖 |
+| Review 轮次计数 | 已定义 | Spec Compliance 和 Code Quality 各自独立计 3 轮上限（最多 6 轮总计） |
+| Brainstorming 用户拒绝无上限 | 不设限 | 用户主导设计修订，系统不设人工上限；spec review 有 3 轮上限 |

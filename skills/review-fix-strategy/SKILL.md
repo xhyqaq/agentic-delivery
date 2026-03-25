@@ -9,7 +9,7 @@ Decide HOW to fix reviewer-reported issues based on severity. Not all problems d
 
 ## When to Use
 
-- Called by `agentic-delivery` at Stage 5 when any reviewer (Spec Compliance or Code Quality) returns issues
+- Called by `agentic-delivery` at Stage 6 when any reviewer (Spec Compliance or Code Quality) returns issues
 - The orchestrator (main agent) evaluates severity and routes accordingly
 
 ## Decision Flow
@@ -56,8 +56,10 @@ Reviewer returns issues
 
 **Fix subagent input:**
 - Review report (full text)
-- Relevant source files (only the files mentioned in review)
+- Relevant source files from the latest checkpoint (only the files mentioned in review)
 - Task description (brief context)
+
+When using checkpoint commits, patch fixes should start from the latest checkpoint rather than uncommitted workspace state.
 
 ### Critical
 
@@ -79,7 +81,7 @@ Reviewer returns issues
 - Let it implement from scratch based on spec
 
 **Option B — Redesign task:**
-- Return to Stage 3 (plan writing)
+- Return to Stage 4 (plan writing)
 - Redesign this specific task
 - Re-dispatch with new plan
 

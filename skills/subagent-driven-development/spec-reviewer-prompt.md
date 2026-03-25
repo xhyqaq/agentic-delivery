@@ -18,6 +18,10 @@ Task tool (general-purpose):
 
     [From implementer's report]
 
+    ## Code Changes
+
+    [GIT DIFF of the checkpoint commit — use `git diff BASE_SHA..HEAD_SHA` to generate]
+
     ## CRITICAL: Do Not Trust the Report
 
     The implementer finished suspiciously quickly. Their report may be incomplete,

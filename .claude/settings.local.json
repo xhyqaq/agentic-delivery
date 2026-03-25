@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jq -r '.role + \"\"\"\": \"\"\"\" + \\(.content[0].text // .content[0].type // \"\"\"\"tool_use\"\"\"\"\\)')",
+      "Bash(find ~/.claude/skills -name *.md -type f)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(xattr:*)",
+      "Bash(defaults read:*)",
+      "Bash(sudo xattr:*)",
+      "Bash(find /Users/xhy/Desktop/agentic-delivery -name review-fix-strategy* -o -name visual-companion*)"
+    ]
+  }
+}

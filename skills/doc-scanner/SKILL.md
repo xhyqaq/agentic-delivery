@@ -9,7 +9,7 @@ Scan project structure and existing documentation to generate a standardized pro
 
 ## When to Use
 
-- Called by `agentic-delivery` at Stage 1 (Doc Scan)
+- Called by `agentic-delivery` at Stage 2 (Doc Scan)
 - When `docs/<project>/project-context.md` does not exist or is outdated
 - When entering a new project for the first time
 
@@ -87,6 +87,6 @@ The output MUST follow this exact section structure. Fill each section. If infor
 
 ## Lifecycle
 
-**Created by:** `agentic-delivery` main agent at Stage 1
+**Created by:** `agentic-delivery` main agent at Stage 2
 **Disposed:** Immediately after `project-context.md` is written
 **Output persists:** As file on disk, reusable across sessions

@@ -11,6 +11,10 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
 
+**Commit semantics:** implementer commits are checkpoints for review and rollback. A task is not complete until both review stages pass.
+
+**Progress tracking:** After a task passes both reviews, update `implementation-plan.md`: change `- [ ] Task N` to `- [x] Task N`. This enables cross-session recovery — a new session can skip completed tasks.
+
 ## When to Use
 
 ```dot
@@ -77,7 +81,8 @@ digraph process {
     "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
     "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
     "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
-    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "Mark task complete in TodoWrite" -> "Update plan checkbox to [x]";
+    "Update plan checkbox to [x]" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
     "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
     "Dispatch final code reviewer subagent for entire implementation" -> "Use finishing-a-development-branch skill";
@@ -146,7 +151,7 @@ Implementer: "Got it. Implementing now..."
   - Implemented install-hook command
   - Added tests, 5/5 passing
   - Self-review: Found I missed --force flag, added it
-  - Committed
+  - Committed checkpoint
 
 [Dispatch spec compliance reviewer]
 Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
@@ -166,7 +171,7 @@ Implementer:
   - Added verify/repair modes
   - 8/8 tests passing
   - Self-review: All good
-  - Committed
+  - Committed checkpoint
 
 [Dispatch spec compliance reviewer]
 Spec reviewer: ❌ Issues:
@@ -237,7 +242,7 @@ Done!
 - Start implementation on main/master branch without explicit user consent
 - Skip reviews (spec compliance OR code quality)
 - Proceed with unfixed issues
-- Dispatch multiple implementation subagents in parallel (conflicts)
+- Parallelize tasks that share files, shared state, or integration-order dependencies (these MUST run sequentially)
 - Make subagent read plan file (provide full text instead)
 - Skip scene-setting context (subagent needs to understand where task fits)
 - Ignore subagent questions (answer before letting them proceed)
@@ -253,10 +258,10 @@ Done!
 - Don't rush them into implementation
 
 **If reviewer finds issues:**
-- Implementer (same subagent) fixes them
-- Reviewer reviews again
-- Repeat until approved
-- Don't skip the re-review
+- Dispatch a fresh fix subagent with review report + relevant files (see review-fix-strategy)
+- The fix subagent is a new instance — all subagents are stateless
+- Fresh reviewer reviews the fix (never reuse reviewers across rounds)
+- Repeat until approved or max rounds reached
 
 **If subagent fails task:**
 - Dispatch fix subagent with specific instructions
