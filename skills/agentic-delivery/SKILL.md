@@ -485,6 +485,122 @@ Implementer returns DONE
 
 ---
 
+## Commit Verification Checkpoint (RECOMMENDED)
+
+**When:** Immediately after implementer returns DONE, before extracting test data
+
+**Purpose:** Verify implementer's checkpoint commit is real and valid
+
+**User Preference:** Verification failures are **non-blocking** (log warning, continue)
+
+### Verification Commands
+
+Run these checks to validate the checkpoint commit:
+
+```bash
+# Step 1: Verify commit exists
+git cat-file -t <commit_sha>
+# Expected output: "commit"
+# If fails: commit does not exist
+
+# Step 2: Verify commit message format
+git log -1 --format=%B <commit_sha>
+# Check:
+# - Starts with conventional type: "feat:" | "fix:" | "refactor:" | "test:" | "docs:"
+# - Contains task reference (optional but recommended)
+
+# Step 3: Verify files in commit
+git diff-tree --no-commit-id --name-only -r <commit_sha>
+# Check: all files reported by implementer are in commit
+
+# Step 4: Verify commit is on current branch
+git branch --contains <commit_sha>
+# Check: current branch is in the list
+```
+
+### Handling Verification Results
+
+**If ALL checks pass:**
+```
+✅ Checkpoint commit verified: <commit_sha>
+[Log success and proceed to Test Verification]
+```
+
+**If ANY check fails (non-blocking warning mode):**
+```
+⚠️ Checkpoint commit verification warning
+
+Task: [Task N: name]
+Reported commit: <commit_sha>
+Issues detected:
+  - [❌ Commit does not exist]
+  - [❌ Invalid commit message format]
+  - [❌ Missing expected files: file1.ts, file2.ts]
+  - [❌ Commit not on current branch]
+
+[Continue to Test Verification despite warnings]
+[User can review and fix issues later if needed]
+```
+
+### Example Orchestrator Code
+
+```python
+# Pseudo-code for orchestrator
+def verify_checkpoint_commit(checkpoint_commit, expected_files):
+    """
+    Verify checkpoint commit (non-blocking).
+
+    Returns:
+        (warnings: List[str]) - Empty list if all checks pass
+    """
+    warnings = []
+
+    # Check 1: Commit exists
+    result = run_command(f"git cat-file -t {checkpoint_commit}")
+    if result.returncode != 0:
+        warnings.append(f"Commit {checkpoint_commit} does not exist")
+        return warnings  # Cannot continue other checks
+
+    # Check 2: Commit message format
+    commit_msg = run_command(f"git log -1 --format=%B {checkpoint_commit}").stdout
+    valid_types = ["feat:", "fix:", "refactor:", "test:", "docs:", "chore:"]
+    if not any(commit_msg.startswith(t) for t in valid_types):
+        warnings.append("Commit message missing conventional type prefix")
+
+    # Check 3: Files in commit
+    changed_files = run_command(
+        f"git diff-tree --no-commit-id --name-only -r {checkpoint_commit}"
+    ).stdout.strip().split("\n")
+
+    missing_files = [f for f in expected_files if f not in changed_files]
+    if missing_files:
+        warnings.append(f"Expected files not in commit: {missing_files}")
+
+    # Check 4: Commit on current branch
+    branches = run_command(f"git branch --contains {checkpoint_commit}").stdout
+    current_branch = run_command("git branch --show-current").stdout.strip()
+    if current_branch not in branches:
+        warnings.append(f"Commit not on current branch ({current_branch})")
+
+    return warnings
+
+# Usage in Stage 6
+checkpoint_commit = implementer_result["Checkpoint Commit"]
+expected_files = [f["path"] for f in implementer_result["Files Changed"]]
+
+warnings = verify_checkpoint_commit(checkpoint_commit, expected_files)
+
+if warnings:
+    log_warning(f"⚠️ Commit verification issues: {warnings}")
+    # Continue to Test Verification (non-blocking)
+else:
+    log(f"✅ Checkpoint commit verified: {checkpoint_commit}")
+
+# Proceed to Test Verification regardless of warnings
+```
+
+---
+
 ## How Orchestrator Prepares Test Verification Agent Input
 
 **Step 1: Extract from Plan (Task N's Test Strategy)**
@@ -567,6 +683,84 @@ if decision == "approve":
         task_name=task_name,
         changed_files=implementer_report["Files Changed"],
         review_summary="Test Verification passed (N rounds)"
+    )
+
+    # Update implementation-plan.md after Test Verification approves
+    update_implementation_plan_after_verification(
+        task_id=task_id,
+        task_name=task_name,
+        implementer_report=implementer_report,
+        verification_result=verification_result
+    )
+```
+
+### Update Implementation Plan After Test Verification
+
+After Test Verification Agent approves, update the implementation-plan.md:
+
+```python
+# Pseudo-code for orchestrator
+def update_implementation_plan_after_verification(task_id, task_name, implementer_report, verification_result):
+    """
+    Update implementation-plan.md after Test Verification approves.
+
+    Args:
+        task_id: Task number (e.g., 1)
+        task_name: Task name from plan
+        implementer_report: Full implementer output
+        verification_result: Test Verification Agent decision
+    """
+    # Extract data
+    checkpoint_commit = implementer_report["Checkpoint Commit"]
+    test_cases = implementer_report["Test Verification Data"]["Test Names"]
+    test_file = extract_test_file_from_report(implementer_report)
+    verified_timestamp = current_timestamp()  # Format: "YYYY-MM-DD HH:MM"
+
+    # Build the completion section
+    test_case_bullets = "\n  ".join([f"- ✓ {tc}" for tc in test_cases])
+    completion_text = f"""
+  **Tests:** (added after completion)
+  {test_case_bullets}
+  **Test file:** `{test_file}`
+  **Checkpoint Commit:** {checkpoint_commit[:7]}
+  **Verified:** {verified_timestamp}
+"""
+
+    # Find the task in plan
+    plan_content = read_file("docs/<project>/<feature>/implementation-plan.md")
+
+    # Update task checkbox from [ ] to [x]
+    updated_content = plan_content.replace(
+        f"- [ ] Task {task_id}: {task_name}",
+        f"- [x] Task {task_id}: {task_name}"
+    )
+
+    # Insert completion section after the task's Test Strategy section
+    # (Find the insertion point right before the next task or end of file)
+    task_pattern = f"### Task {task_id}:"
+    next_task_pattern = f"### Task {task_id + 1}:"
+
+    insertion_point = find_insertion_point(updated_content, task_pattern, next_task_pattern)
+    updated_content = insert_text_at(updated_content, insertion_point, completion_text)
+
+    # Write back to plan
+    write_file("docs/<project>/<feature>/implementation-plan.md", updated_content)
+
+    log(f"✅ Task {task_id} marked complete in implementation-plan.md")
+    log(f"   Checkpoint: {checkpoint_commit[:7]}")
+    log(f"   Verified: {verified_timestamp}")
+
+# Example usage in Stage 6
+if verification_result["overall_status"] == "PASS":
+    # First dispatch doc-syncer
+    dispatch_doc_syncer(...)
+
+    # Then update implementation plan
+    update_implementation_plan_after_verification(
+        task_id=current_task_id,
+        task_name=current_task_name,
+        implementer_report=implementer_result,
+        verification_result=verification_result
     )
 
     # Proceed to next task

@@ -42,11 +42,60 @@ Task tool (general-purpose):
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
     3. Verify implementation works
-    4. Create a checkpoint commit for your work
+    4. **Create a checkpoint commit** (MANDATORY)
     5. Self-review (see below)
     6. Report back
 
     Work from: [directory]
+
+    ## Creating the Checkpoint Commit
+
+    **CRITICAL: Use HEREDOC format to ensure special characters are handled correctly**
+
+    ```bash
+    git add [files]
+    git commit -m "$(cat <<'EOF'
+    feat: [Brief description of what you implemented]
+
+    - [Detailed change 1]
+    - [Detailed change 2]
+    - [Detailed change 3]
+
+    Task: [Task name from plan]
+    EOF
+    )"
+    ```
+
+    **Commit message requirements:**
+    - Type prefix: `feat:` (new feature) | `fix:` (bug fix) | `refactor:` (code improvement) | `test:` (tests only) | `docs:` (documentation)
+    - Brief description: ≤ 50 characters, imperative mood ("add", not "added")
+    - Detailed changes: Bullet list of what changed and why
+    - Task reference: Copy task name from plan for traceability
+
+    **Why HEREDOC (`<<'EOF'`):**
+    - Prevents shell special characters ($, `, \, ") from breaking commit message
+    - Supports multi-line messages cleanly
+    - Ensures literal string (no variable expansion)
+
+    **Example:**
+    ```bash
+    git commit -m "$(cat <<'EOF'
+    feat: implement user authentication API
+
+    - Add JWT token generation and validation
+    - Implement login endpoint with email/password
+    - Add token refresh mechanism
+    - Handle expired token errors
+
+    Task: Implement login API (Task 3)
+    EOF
+    )"
+    ```
+
+    **After committing:**
+    - Verify commit was created: `git log -1 --oneline`
+    - Record the commit SHA (first 7-9 characters)
+    - Report the SHA in your output under "Checkpoint Commit"
 
     The commit is a checkpoint for review and rollback, not final approval of the task.
 

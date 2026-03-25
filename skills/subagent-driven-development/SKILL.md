@@ -13,17 +13,38 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Commit semantics:** implementer commits are checkpoints for review and rollback. A task is not complete until both review stages pass.
 
-**Progress tracking:** After a task passes both reviews, update `implementation-plan.md`:
-1. Add test summary under the task:
+**Progress tracking:** After a task passes Test Verification, update `implementation-plan.md`:
+
+**Update Trigger:** Test Verification Agent returns `approve` decision
+
+**Required Updates:**
+1. Mark task checkbox as `[x]`
+2. Add test summary under the task:
    ```markdown
    - [x] Task N: [description]
      **Tests:**
      - ✓ [test case 1]
      - ✓ [test case 2]
      **Test file:** `path/to/test.file`
-     **Commit:** [SHA]
+     **Checkpoint Commit:** [SHA]
+     **Verified:** [YYYY-MM-DD HH:MM]
    ```
-2. Mark task checkbox as `[x]`
+
+**Field Descriptions:**
+- `**Checkpoint Commit:**` - The commit SHA created by implementer (short format: 7-9 chars)
+- `**Verified:**` - Timestamp when Test Verification Agent approved (format: `2026-03-26 01:30`)
+
+**Orchestrator Responsibility:**
+- Extract test case names from implementer's Test Verification Data
+- Copy checkpoint commit SHA from implementer report
+- Record verification timestamp (current time when Test Verification approves)
+- Update plan file using Edit tool immediately after Test Verification approval
+
+**Do NOT update plan if:**
+- Test Verification fails (wait for fix and re-verification)
+- Spec Check fails (wait for fix)
+- Implementer returns BLOCKED/NEEDS_CONTEXT
+- Commit verification warnings exist (optional: add warning note to plan)
 
 This enables cross-session recovery — a new session can skip completed tasks and see what was tested.
 

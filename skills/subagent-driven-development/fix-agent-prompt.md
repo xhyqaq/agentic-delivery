@@ -86,13 +86,21 @@ Task tool:
     4. **Create fix commit**
        ```bash
        git add [files]
-       git commit -m "fix: [brief description of what was fixed]
+       git commit -m "$(cat <<'EOF'
+       fix: [brief description of what was fixed]
 
        - Issue 1: [what was wrong, what you fixed]
        - Issue 2: [what was wrong, what you fixed]
 
-       Addresses review issues: [list issue IDs if available]"
+       Addresses review issues: [list issue IDs if available]
+       EOF
+       )"
        ```
+
+       **IMPORTANT:**
+       - Always use HEREDOC format (`<<'EOF'`) to avoid shell escaping issues
+       - Verify fix commit was created: `git log -1 --oneline`
+       - Report the fix commit SHA in your output
 
     5. **Self-verify**
        - Run tests (if any)
