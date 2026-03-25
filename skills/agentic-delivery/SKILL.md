@@ -212,6 +212,12 @@ Implementer returns DONE
 
 **After reviews pass:** Dispatch `doc-syncer` subagent to update `docs/<project>/<feature>/changelog.md`.
 
+**After all tasks complete:**
+- If plan contains frontend + backend tasks → Dispatch Integration Reviewer subagent
+- Integration Reviewer checks: API contract consistency, data flow completeness, error handling alignment
+- If issues found → Fix → Re-verify
+- If verified → Proceed to Stage 7
+
 **REQUIRED SUB-SKILL:** Use review-fix-strategy for fix decisions.
 
 ### Stage 7: Summary

@@ -8,7 +8,8 @@
       "Bash(xattr:*)",
       "Bash(defaults read:*)",
       "Bash(sudo xattr:*)",
-      "Bash(find /Users/xhy/Desktop/agentic-delivery -name review-fix-strategy* -o -name visual-companion*)"
+      "Bash(find /Users/xhy/Desktop/agentic-delivery -name review-fix-strategy* -o -name visual-companion*)",
+      "Bash(交给一个 subagent review 吗？\":*)"
     ]
   }
 }

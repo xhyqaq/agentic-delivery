@@ -96,7 +96,17 @@ digraph process {
     "Mark task complete in TodoWrite" -> "Update plan checkbox to [x]";
     "Update plan checkbox to [x]" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
-    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "More tasks remain?" -> "Check if integration review needed?" [label="no"];
+    "Check if integration review needed?" [shape=diamond];
+    "Check if integration review needed?" -> "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [label="yes - has frontend+backend"];
+    "Check if integration review needed?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no - single domain"];
+    "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [shape=box];
+    "Integration verified?" [shape=diamond];
+    "Dispatch integration reviewer (./integration-reviewer-prompt.md)" -> "Integration verified?";
+    "Integration verified?" -> "Dispatch fix subagent for integration issues" [label="no"];
+    "Dispatch fix subagent for integration issues" [shape=box];
+    "Dispatch fix subagent for integration issues" -> "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [label="re-verify"];
+    "Integration verified?" -> "Dispatch final code reviewer subagent for entire implementation" [label="yes"];
     "Dispatch final code reviewer subagent for entire implementation" -> "Use finishing-a-development-branch skill";
 }
 ```
@@ -139,6 +149,66 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 - `./implementer-prompt.md` - Dispatch implementer subagent
 - `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
 - `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+- `./integration-reviewer-prompt.md` - Dispatch integration reviewer subagent (for multi-domain plans)
+
+## Integration Review (for Multi-Domain Plans)
+
+**Trigger condition:** Plan contains 2+ tasks split across different domains (e.g., frontend + backend)
+
+**When:** After all individual task reviews pass, before final code review
+
+**Purpose:** Verify that implementations from different domains can integrate successfully
+
+### What Integration Review Checks
+
+**1. API Contract Consistency**
+- Backend output format vs Frontend expectations
+- Field names match (camelCase vs snake_case)
+- Types match (string vs number)
+- Response structures align
+- Status codes consistent
+
+**2. Data Flow Completeness**
+- All APIs defined in spec are implemented
+- All implemented APIs are called by frontend
+- CRUD operations complete (create/read/update/delete)
+- No missing endpoints on either side
+
+**3. Error Handling Alignment**
+- Backend error codes vs Frontend error handling
+- All backend error types (400, 401, 403, 404, 409, 500) handled by frontend
+- Error response formats consistent
+
+### Integration Review Process
+
+```
+All task reviews passed ✓
+  ↓
+Check: Plan has frontend + backend split?
+  ↓ yes
+Dispatch Integration Reviewer
+  Input:
+  - Design spec (API contract section)
+  - Backend task git diffs
+  - Frontend task git diffs
+  ↓
+Integration Reviewer checks:
+  - API contract consistency
+  - Data flow completeness
+  - Error handling alignment
+  ↓
+✅ Verified → Proceed to final review
+❌ Issues found → Dispatch fix subagent → Re-verify
+```
+
+**Cost:** ~300-500 tokens (reviews 2 git diffs + spec)
+
+**Benefit:** Catches integration issues before runtime (field name mismatches, missing API calls, unhandled error codes)
+
+**Example Issues Caught:**
+- Backend returns `{ userId: 1 }`, Frontend expects `{ user_id: 1 }`
+- DELETE /api/skills implemented but never called by frontend
+- Backend returns 409 Conflict, Frontend only handles 400/500
 
 ## Example Workflow
 
@@ -231,6 +301,14 @@ Code reviewer: ✅ Approved
 ...
 
 [After all tasks]
+
+**If plan contains frontend + backend tasks:**
+[Check integration]
+[Dispatch integration reviewer (./integration-reviewer-prompt.md)]
+Integration reviewer: Checks API contract consistency, data flow, error handling
+  - ✅ Verified → proceed to final review
+  - ❌ Issues found → dispatch fix subagent → re-verify
+
 [Dispatch final code-reviewer]
 Final reviewer: All requirements met, ready to merge
 
