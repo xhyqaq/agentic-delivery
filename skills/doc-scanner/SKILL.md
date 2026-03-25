@@ -10,8 +10,10 @@ Scan project structure and existing documentation to generate a standardized pro
 ## When to Use
 
 - Called by `agentic-delivery` at Stage 2 (Doc Scan)
-- When `docs/<project>/project-context.md` does not exist or is outdated
+- When `docs/project-context.md` does not exist or is outdated
 - When entering a new project for the first time
+
+**Path Note:** File is always generated at `docs/project-context.md` in the current working directory, NOT in subdirectory projects.
 
 ## Core Philosophy: Trust but Verify
 

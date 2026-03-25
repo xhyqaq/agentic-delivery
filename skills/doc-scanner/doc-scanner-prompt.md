@@ -22,9 +22,9 @@ Task tool:
     You are scanning a project to generate project context documentation.
 
     ## Input
-    - Project root: {project_root}
+    - Project root: {project_root}  (当前工作目录)
     - Scan targets: {scan_targets}
-    - Output file: {output_path}
+    - Output file: {output_path}  (默认: docs/project-context.md)
 
     ## Your Job
 
@@ -55,6 +55,10 @@ Task tool:
     - Use Format B (Code-Only) if Phase 3 was used
     - Include verification status for each section
     - Mark uncertainties as ⚠️
+    - **IMPORTANT**: Write to the exact path provided in {output_path}
+      - Default is `docs/project-context.md` in current working directory
+      - NOT in subdirectory projects (e.g., NOT `frontend/docs/`)
+      - Create `docs/` directory if it doesn't exist
 
     See doc-scanner/SKILL.md for complete details and output templates.
 
@@ -63,7 +67,7 @@ Task tool:
     Return JSON:
     {
       "status": "DONE",
-      "output_file": "docs/<project>/project-context.md",
+      "output_file": "docs/project-context.md",
       "verification_status": "✅ Verified" | "⚠️ Partial" | "❌ Code-only",
       "token_cost": 300-2000,
       "key_findings": {
@@ -80,11 +84,16 @@ Task tool:
 
 ## Input Parameters (from orchestrator)
 
-| Parameter | Type | Example |
-|-----------|------|---------|
-| project_root | string | "/Users/xhy/Desktop/my-project" |
-| scan_targets | array | ["README.md", "CLAUDE.md", "AGENTS.md", "docs/"] |
-| output_path | string | "docs/my-project/project-context.md" |
+| Parameter | Type | Example | Default |
+|-----------|------|---------|---------|
+| project_root | string | $(pwd) | 当前工作目录 |
+| scan_targets | array | ["README.md", "CLAUDE.md", "AGENTS.md", "docs/"] | 标准文档列表 |
+| output_path | string | "docs/project-context.md" | **docs/project-context.md**（当前目录下） |
+
+**重要说明：**
+- `output_path` 默认为 `docs/project-context.md`，相对于当前工作目录
+- **不是** `docs/<project>/project-context.md`（避免嵌套到子项目）
+- 如果 `docs/` 不存在，doc-scanner 会自动创建
 
 ---
 

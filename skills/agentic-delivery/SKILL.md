@@ -84,10 +84,12 @@ Task tool:
 3. Fallback: Code-only scan if docs contradicted/missing
 4. Generate: `project-context.md` with verification status (✅ Verified / ⚠️ Partial / ❌ Contradicted)
 
-**Input:** Project root path
-**Output:** `docs/<project>/project-context.md` (with verification markers)
+**Input:** Project root path (current working directory)
+**Output:** `docs/project-context.md` (with verification markers, **in current directory**)
 **Cost:** ~300 tokens (verified) or ~2000 tokens (code-only fallback)
 **Lifecycle:** Dispose after completion.
+
+**Path Note:** File is generated at `./docs/project-context.md` relative to current working directory, NOT in subdirectory projects.
 
 **See:** `doc-scanner/doc-scanner-prompt.md` for complete dispatch template
 
