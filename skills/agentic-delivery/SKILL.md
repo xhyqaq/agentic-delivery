@@ -64,7 +64,61 @@ Analyze the user's request and classify:
 
 ## Full Pipeline (Large Feature)
 
-### Stage 2: Doc Scan
+### Phase 0: Project Context Preparation (Blocking Prerequisite)
+
+**Trigger:** Large feature path (full pipeline)
+
+**Responsibility:** Ensure `docs/project-context.md` exists before design begins
+
+**Flow (Simplified):**
+
+1. **Check if document exists**
+   ```python
+   # Pseudo-code
+   if file_exists("docs/project-context.md"):
+       log("✅ Project context document exists, using it")
+       # Proceed to Stage 3
+   else:
+       # Launch doc-scanner (blocking mode)
+       log("⚠️ Project context document missing, starting scan...")
+   ```
+
+2. **Launch doc-scanner (blocking mode)** (if needed)
+
+   **Display progress message:**
+   ```
+   Building project context...
+   This is a one-time scan, subsequent sessions will reuse this document.
+
+   Estimated time: 30-90 seconds
+   ```
+
+   **Dispatch doc-scanner subagent (synchronous wait):**
+   - Use `doc-scanner-prompt.md` template
+   - `subagent_type: "Explore"`
+   - **Wait for subagent to complete** (not async)
+   - Verify `docs/project-context.md` has been generated
+
+3. **Blocking checkpoint**
+   ```python
+   # Pseudo-code
+   assert file_exists("docs/project-context.md"), "Project context document missing"
+   assert file_readable("docs/project-context.md"), "Project context document unreadable"
+   assert file_size("docs/project-context.md") > 500, "Project context document too small (may be incomplete)"
+
+   log("✅ Phase 0 complete: project context ready")
+   ```
+
+**Only after passing the checkpoint can you proceed to Stage 3.**
+
+**Fast Path / Debug Path:** Skip Phase 0, proceed directly to implementation.
+
+**Why not check freshness?**
+- Stage 7 will automatically update `project-context.md` (if implementation introduces new architectural patterns or conventions)
+- Continuous use of agentic-delivery will naturally keep the document current
+- Simple "use if exists" logic is more reliable
+
+### Stage 2: Doc Scan (Part of Phase 0)
 
 Dispatch doc-scanner subagent using `doc-scanner-prompt.md` to generate project context.
 
@@ -100,9 +154,14 @@ Task tool:
 
 ### Stage 3: Requirement Analysis & Design
 
+**Prerequisite:**
+- ✅ Phase 0 complete, `docs/project-context.md` is ready
+
 Execute brainstorming process (main agent, NOT subagent):
 
-1. Read `project-context.md`
+1. **Read `project-context.md`** (mandatory first step)
+   - Extract tech stack, architectural patterns, code conventions
+   - Follow these conventions during design
 2. Follow the `brainstorming` questioning strategy to clarify requirements
    - Batch independent questions when possible
    - Ask sequentially only when later questions depend on earlier answers
@@ -444,7 +503,7 @@ Task tool:
 
 **REQUIRED SUB-SKILL:** Use review-fix-strategy for fix decisions.
 
-### Stage 7: Summary
+### Stage 7: Summary + Project Context Update
 
 Main agent compiles delivery report:
 
@@ -454,6 +513,149 @@ Main agent compiles delivery report:
 - All artifacts produced (docs, files changed)
 - File change list with descriptions
 - Lessons learned or optimization opportunities
+
+**NEW: Update project-context.md if needed**
+
+After compiling the summary, check if implementation introduced changes that affect project context:
+
+**Detection Signals:**
+
+1. **New top-level directories** (high signal)
+   - Example: new `src/middleware/`, `src/plugins/`, etc.
+   - Indicates: new architectural layer introduced
+
+2. **New major dependencies** (medium signal)
+   - Example: added `zod`, `prisma`, `trpc`, etc.
+   - Indicates: new tech stack components introduced
+
+3. **New architectural patterns** (high signal)
+   - Extract from `design-spec.md` and `changelog.md`
+   - Example: introduced DI container, Event Sourcing, CQRS, etc.
+   - Indicates: new architectural patterns established
+
+4. **New code conventions** (medium signal)
+   - Extract from review reports
+   - Example: unified error handling pattern, API response format, naming conventions, etc.
+   - Indicates: new code conventions clarified
+
+**Update Logic:**
+
+```python
+# Pseudo-code
+def update_project_context_if_needed():
+    """
+    Update project-context.md at Stage 7 summary (if needed)
+    """
+    updates = []
+
+    # Signal 1: New top-level directories
+    new_dirs = detect_new_top_level_directories()
+    if new_dirs:
+        updates.append({
+            "section": "## Directory Structure",
+            "type": "append",
+            "content": format_new_directories(new_dirs)
+        })
+
+    # Signal 2: New major dependencies
+    new_deps = detect_new_major_dependencies()
+    if new_deps:
+        updates.append({
+            "section": "## Tech Stack",
+            "type": "append",
+            "content": format_new_dependencies(new_deps)
+        })
+
+    # Signal 3: New architectural patterns (extract from design-spec/changelog)
+    new_patterns = extract_architectural_patterns()
+    if new_patterns:
+        updates.append({
+            "section": "## Architecture",
+            "type": "append",
+            "content": format_new_patterns(new_patterns)
+        })
+
+    # Signal 4: New code conventions (extract from review reports)
+    new_conventions = extract_code_conventions_from_reviews()
+    if new_conventions:
+        updates.append({
+            "section": "## Coding Conventions",
+            "type": "append",
+            "content": format_new_conventions(new_conventions)
+        })
+
+    # If there are updates, apply to file
+    if len(updates) > 0:
+        log(f"Detected {len(updates)} project context changes")
+        apply_updates_to_project_context(updates)
+        log("✅ Updated project-context.md")
+    else:
+        log("✅ Project context requires no updates")
+
+def apply_updates_to_project_context(updates):
+    """
+    Apply updates to project-context.md
+    """
+    content = read_file("docs/project-context.md")
+
+    for update in updates:
+        section = update["section"]
+        new_content = update["content"]
+
+        # Find corresponding section, append content
+        if section in content:
+            # Append to end of section (before next ##)
+            content = append_to_section(content, section, new_content)
+        else:
+            # Section doesn't exist, create new section
+            content += f"\n\n{section}\n\n{new_content}"
+
+    write_file("docs/project-context.md", content)
+```
+
+**Update Strategy:**
+
+- **Conservative principle**: Only update obvious, verifiable changes (not based on speculation)
+- **Append first**: Most cases append new info, rarely modify existing content
+- **Main agent completes**: No additional subagent needed, Stage 7 main agent judges and updates itself
+- **User visible**: Display updated content in summary
+
+**Example Output:**
+
+```
+## Delivery Summary
+
+### Execution Overview
+- Requirement type: Large feature
+- Total tasks: 5
+- Parallel execution: Task 2, 3
+- Review rounds: 8 total
+
+### Stage outputs
+... (regular summary) ...
+
+### Project Context Update
+✅ Detected the following changes and updated project-context.md:
+
+1. **New directory structure**
+   - `src/middleware/` — New middleware layer
+   - `src/plugins/` — New plugin system
+
+2. **New tech stack**
+   - `zod` (v3.22.0) — Schema validation
+   - `trpc` (v10.45.0) — Type-safe API
+
+3. **New architectural patterns**
+   - Dependency Injection — Using InversifyJS container
+   - Plugin Architecture — Supports dynamic plugin loading
+
+See `docs/project-context.md` for details (git diff shows specific changes)
+```
+
+**Why at Stage 7?**
+- Only after implementation is complete do we know what changes were truly introduced
+- Only after review passes can we confirm changes are reasonable and worth preserving
+- Centralized updates are easier to track and rollback than distributed updates
 
 ## Fast Path (Small Change)
 

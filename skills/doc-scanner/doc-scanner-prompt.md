@@ -28,13 +28,23 @@ Task tool:
 
     ## Your Job
 
+    **At the start, output progress message:**
+    ```
+    Starting project context scan...
+    Phase 1: Checking existing documentation
+    Phase 2: Verifying tech stack information
+    Phase 3: Generating project context document
+    ```
+
     Follow the complete workflow defined in doc-scanner/SKILL.md:
 
     **Phase 1: Pre-check (< 50ms)**
+    - [Output] "Phase 1/3: Checking existing documentation..."
     - Check if external docs exist and are fresh (< 1 year old)
     - If no docs OR docs > 1 year → skip to Phase 3
 
     **Phase 2: Read & Verify (< 500ms)**
+    - [Output] "Phase 2/3: Verifying tech stack information (sampling 10-20 files)..."
     - Read documentation claims from README.md, CLAUDE.md, docs/
     - Extract key claims (Tech Stack, Architecture, Conventions)
     - Verify P0 claims (Tech Stack) via code sampling:
@@ -45,12 +55,14 @@ Task tool:
     - Trust P2 claims (Conventions) unless obviously contradicted
 
     **Phase 3: Fallback - Code-Only Scan (if docs missing/outdated/contradicted)**
+    - [Output] "Phase 3/3: Inferring project information from code..."
     - Scan project structure with `tree -L 3`
     - Infer tech stack from package.json, lock files, imports
     - Sample code conventions from 20 random files
     - Generate project-context.md with "✅ Inferred from Code" markers
 
     **Phase 4: Generate Output**
+    - [Output] "Generating project context document: docs/project-context.md"
     - Use Format A (Verified Documentation) if Phase 2 succeeded
     - Use Format B (Code-Only) if Phase 3 was used
     - Include verification status for each section
@@ -62,6 +74,23 @@ Task tool:
 
     See doc-scanner/SKILL.md for complete details and output templates.
 
+    **After completion, output summary:**
+    ```json
+    {
+      "status": "DONE",
+      "output_file": "docs/project-context.md",
+      "verification_status": "✅ Verified",
+      "phases_executed": ["Phase 1: Pre-check", "Phase 2: Verify", "Phase 4: Generate"],
+      "token_cost": 350,
+      "key_findings": {
+        "tech_stack": "React 18 + TypeScript (✅ 90% verified)",
+        "architecture": "3-layer pattern (⚠️ exists but not strictly enforced)",
+        "conventions": "camelCase functions (✅ 95% observed)"
+      },
+      "estimated_time": "45 seconds"
+    }
+    ```
+
     ## Output Format
 
     Return JSON:
@@ -69,12 +98,14 @@ Task tool:
       "status": "DONE",
       "output_file": "docs/project-context.md",
       "verification_status": "✅ Verified" | "⚠️ Partial" | "❌ Code-only",
+      "phases_executed": ["list", "of", "phases"],
       "token_cost": 300-2000,
       "key_findings": {
         "tech_stack": "React 18 + TypeScript (✅ 90% verified)",
         "architecture": "3-layer pattern (⚠️ exists but not strictly enforced)",
         "conventions": "camelCase functions (✅ 95% observed)"
-      }
+      },
+      "estimated_time": "30-90 seconds"
     }
 
   subagent_type: "Explore"

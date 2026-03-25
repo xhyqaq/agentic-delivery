@@ -68,23 +68,26 @@
                │ 大需求
                ▼
 ┌─────────────────────────────────┐
-│ Stage 2: 文档扫描与沉淀           │
-│ dispatch: Doc Scanner subagent   │
-│ 产出: docs/<project>/project-context.md │
+│ **Phase 0: 项目上下文准备（阻塞）** │  ← 新增阶段
+│ 检查 project-context.md          │
+│   ├─ 存在 → 复用                 │
+│   └─ 不存在 → dispatch doc-scanner│
+│ **等待完成后才能进入 Stage 3**     │
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
 │ Stage 3: 需求分析与设计           │
+│ **前置：读取 project-context.md** │
 │ 主 agent 执行 brainstorming      │
 │ dispatch: Spec Reviewer subagent │
-│ 产出: docs/<project>/<feature>/design-spec.md │
+│ 产出: design-spec.md             │
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
 │ Stage 4: 实现计划编写             │
 │ 主 agent 编写 plan               │
 │ dispatch: Plan Reviewer subagent │
-│ 产出: docs/<project>/<feature>/implementation-plan.md │
+│ 产出: implementation-plan.md     │
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
@@ -105,11 +108,18 @@
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
-│ Stage 7: 产出总结                │
+│ Stage 7: 产出总结 + 更新上下文     │
 │ 主 agent 汇总所有阶段结果         │
+│ **检测并更新 project-context.md** │
 │ 输出给用户                       │
 └─────────────────────────────────┘
 ```
+
+**关键变化（相比原设计）：**
+- **Phase 0 是阻塞前置步骤**，不是可选的
+- **doc-scanner 以同步模式运行**，主 agent 等待完成
+- **Stage 3 必须基于 project-context.md** 进行设计
+- **Stage 7 新增更新机制**，保持项目上下文文档最新
 
 ### 3.2 各 Stage 详细说明
 
@@ -133,7 +143,28 @@
 - 若 `docs/<project>/<feature>/` 已存在相关文档，读取后跳过已完成的 stage
 - 例如：design-spec.md 已存在 → 跳过 Stage 3，直接进入 Stage 4
 
-#### Stage 2: 文档扫描与沉淀
+#### Phase 0: 项目上下文准备（新增）
+
+**执行者**：主 agent + Doc Scanner subagent
+
+**职责**：确保 `docs/project-context.md` 存在且可用
+
+**流程（简化）：**
+1. 检查文档是否存在
+   - 存在 → ✅ 复用，进入 Stage 3
+   - 不存在 → 启动 doc-scanner（阻塞模式）
+2. 启动 doc-scanner
+   - 显示进度提示："正在建立项目上下文... 预计耗时：30-90 秒"
+   - 等待 subagent 完成（同步）
+   - 验证文件已生成
+3. 阻塞检查点
+   - 验证文件存在、可读、完整
+
+**为什么不检查新鲜度？**
+- Stage 7 会自动更新 project-context.md
+- 持续使用 agentic-delivery 会自然保持文档最新
+
+#### Stage 2: 文档扫描与沉淀（已合并到 Phase 0）
 
 **执行者**：Doc Scanner subagent
 
@@ -327,9 +358,19 @@ Implementer 返回 DONE
 - 职责：更新 `docs/<project>/<feature>/changelog.md`
 - 生命周期：用完即关
 
-#### Stage 7: 产出总结
+#### Stage 7: 产出总结 + 项目上下文更新（新增）
 
 **执行者**：主 agent
+
+**职责：**
+1. 汇总所有阶段结果
+2. **检测并更新 project-context.md**（如果实现引入了新的架构模式或约定）
+
+**更新检测信号：**
+- 新增了顶层目录（depth ≤ 2）
+- package.json 新增了主要依赖
+- 引入了新的架构模式（从 design-spec.md 提取）
+- 明确了新的代码规范（从 review 报告提取）
 
 **输出格式**：
 
@@ -346,7 +387,7 @@ Implementer 返回 DONE
 
 | 阶段 | 产出 | 状态 |
 |------|------|------|
-| 文档扫描 | docs/\<project\>/project-context.md | 已生成 |
+| 项目上下文 | docs/project-context.md | 已复用/已生成 |
 | 需求设计 | docs/\<project\>/\<feature\>/design-spec.md | 已确认 |
 | 实现计划 | docs/\<project\>/\<feature\>/implementation-plan.md | 已确认 |
 | 代码实现 | [文件变更列表] | 已完成 |
@@ -357,6 +398,20 @@ Implementer 返回 DONE
 - `src/xxx.ts` — 新建，[职责]
 - `src/yyy.ts` — 修改，[改动点]
 - `tests/xxx.test.ts` — 新建，[覆盖内容]
+
+### 项目上下文更新（如果有）
+✅ 检测到以下变更并已更新 project-context.md：
+
+1. **新增目录结构**
+   - `src/middleware/` — 新增中间件层
+
+2. **新增技术栈**
+   - `zod` (v3.22.0) — Schema validation
+
+3. **新增架构模式**
+   - Dependency Injection — 使用 InversifyJS 容器
+
+更新详情见 `docs/project-context.md` (git diff 可查看具体变更)
 ```
 
 ---
