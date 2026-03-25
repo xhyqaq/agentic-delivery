@@ -168,6 +168,51 @@ Reviewer returns issues
              → Attach: all review reports + fix attempt summaries
 ```
 
+**Fix Agent Dispatch (NEW - Unified Fix Subagent):**
+
+When review fails, use the dedicated fix agent subagent (`subagent-driven-development/fix-agent-prompt.md`) for all severity levels:
+
+**For Minor/Important issues:**
+```
+Task tool:
+  description: "Fix review issues"
+  prompt: [content from fix-agent-prompt.md]
+  input:
+    - review_report: [full JSON from reviewer]
+    - relevant_files: [source files mentioned in review, from checkpoint commit]
+    - checkpoint_commit: [SHA of implementer's checkpoint]
+    - severity: "Minor" | "Important"
+    - task_description: [brief context]
+    - working_directory: [project root]
+  subagent_type: "general-purpose"
+```
+
+**For Critical issues:**
+```
+Task tool:
+  description: "Fix critical review issues"
+  prompt: [content from fix-agent-prompt.md]
+  input:
+    - review_report: [full JSON from reviewer]
+    - design_spec: [original requirements from design-spec.md - excerpt relevant to this task]
+    - severity: "Critical"
+    - task_description: [brief context]
+    - working_directory: [project root]
+    - NO original code (to avoid bias toward flawed approach)
+  subagent_type: "general-purpose"
+```
+
+**Fix agent lifecycle:**
+1. Orchestrator dispatches fix agent with severity-appropriate context
+2. Fix agent analyzes issues and implements fixes
+3. Fix agent creates fix commit
+4. Fix agent returns: `DONE` (with fix commit SHA) or `BLOCKED` (needs user decision)
+5. Orchestrator closes fix agent immediately
+6. If `DONE`: dispatch new reviewer for re-review
+7. If `BLOCKED`: escalate to user with fix agent's questions
+
+See `subagent-driven-development/fix-agent-prompt.md` for complete fix agent specification.
+
 ## Severity Classification
 
 ### Minor / Important

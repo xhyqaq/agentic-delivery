@@ -318,6 +318,49 @@ Implementer subagents report one of four statuses. Handle each appropriately bas
 
 **Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
 
+## Handling Review Failures
+
+When a reviewer (unified, spec, or code quality) reports issues, follow this process:
+
+**1. Assess Severity (orchestrator decision):**
+- Read the review report
+- Classify issues using `review-fix-strategy` Skill criteria:
+  - **Minor**: Small patches (naming, magic numbers, missing checks)
+  - **Important**: Targeted refactoring (code smells, maintainability)
+  - **Critical**: Wrong approach (security flaws, incorrect algorithm, missing core requirements)
+
+**2. Dispatch Fix Agent:**
+```
+Task tool:
+  description: "Fix review issues"
+  prompt: [content from fix-agent-prompt.md]
+  input:
+    - review_report: [full review output]
+    - severity: "Minor" | "Important" | "Critical"
+    - task_description: [original task context]
+    - working_directory: [project root]
+    - (For Minor/Important): relevant_files + checkpoint_commit
+    - (For Critical): design_spec + NO original code
+  subagent_type: "general-purpose"
+```
+
+**3. Process Fix Agent Result:**
+- **DONE**: Fix agent created fix commit
+  - Close fix agent immediately
+  - Dispatch **new reviewer instance** for re-review (fresh perspective)
+  - Max 2-3 rounds depending on review track (see agentic-delivery/SKILL.md § Stage 6)
+- **BLOCKED**: Fix agent needs user decision
+  - Close fix agent immediately
+  - Escalate to user with fix agent's questions
+  - User provides decision → re-dispatch fix agent or modify approach
+
+**4. Max Rounds Exceeded:**
+- Fast Track: 1 round → escalate
+- Standard Track: 2 rounds → escalate
+- Heavy Track: 3 rounds → escalate
+
+See `review-fix-strategy/SKILL.md` for detailed fix strategy selection logic.
+
 ## Prompt Templates
 
 - `./implementer-prompt.md` - Dispatch implementer subagent
@@ -325,6 +368,7 @@ Implementer subagents report one of four statuses. Handle each appropriately bas
 - `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent (if using sequential strategy)
 - `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent (if using sequential strategy)
 - `./integration-reviewer-prompt.md` - Dispatch integration reviewer subagent (for multi-domain plans)
+- `./fix-agent-prompt.md` - Dispatch fix agent subagent (when review fails, dispatched by orchestrator)
 
 ## Integration Review (for Multi-Domain Plans)
 

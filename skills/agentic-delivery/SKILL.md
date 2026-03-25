@@ -186,6 +186,62 @@ BEFORE dispatching any implementers, analyze each task to assign appropriate rev
 4. **Log assignments** with reasoning
 5. **Store track metadata** for use in Stage 6
 
+**Implementation (orchestrator executes inline):**
+
+```python
+# 伪代码 - 主 agent 在 Stage 5 开始时执行此逻辑
+def assign_review_track(task):
+    """
+    分析任务特征，分配合适的 review track。
+    返回: (track_name, reasoning)
+    """
+    # 提取任务元数据
+    files = task.get("affected_files", [])
+    lines = task.get("estimated_lines", 0)
+    description = task.get("description", "")
+
+    # 分析信号
+    has_api = "API" in description or "interface" in description or "endpoint" in description
+    domains = detect_domains(files)  # 检测涉及的领域 (frontend/backend/database)
+    is_sensitive = any(keyword in description.lower()
+                      for keyword in ["auth", "payment", "security", "credential", "token"])
+    has_architecture_change = any(keyword in description.lower()
+                                  for keyword in ["architecture", "pattern", "refactor", "redesign"])
+
+    # Heavy Track（最高优先级）
+    if len(domains) >= 2:
+        return "Heavy", f"Cross-domain: {', '.join(domains)}"
+    if has_architecture_change:
+        return "Heavy", "Architecture change detected"
+    if is_sensitive:
+        return "Heavy", "Security-sensitive operation"
+
+    # Fast Track（仅当非常简单）
+    if len(files) == 1 and lines < 50 and not has_api:
+        return "Fast", "Simple utility (1 file, <50 lines, no API)"
+
+    # 默认：Standard Track
+    return "Standard", "Typical feature work"
+
+def detect_domains(files):
+    """检测文件涉及的领域"""
+    domains = set()
+    for file in files:
+        if any(pattern in file for pattern in ["frontend/", "ui/", "components/", "pages/"]):
+            domains.add("frontend")
+        if any(pattern in file for pattern in ["backend/", "api/", "server/", "services/"]):
+            domains.add("backend")
+        if any(pattern in file for pattern in ["database/", "db/", "models/", "schema/"]):
+            domains.add("database")
+    return list(domains)
+
+# 主流程：对每个任务执行分析
+for task in implementation_plan.tasks:
+    track, reason = assign_review_track(task)
+    task.metadata["review_track"] = track
+    log(f"Task {task.id} ({task.name}): {track} Track - {reason}")
+```
+
 **Example track assignment output:**
 
 ```markdown
