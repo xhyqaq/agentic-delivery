@@ -13,7 +13,7 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Commit semantics:** implementer commits are checkpoints for review and rollback. A task is not complete until both review stages pass.
 
-**Progress tracking:** After a task passes Test Verification, update `implementation-plan.md`:
+**Progress tracking:** After a task passes Test Verification, update `implementation-tracker.md`:
 
 **Update Trigger:** Test Verification Agent returns `approve` decision
 
@@ -482,7 +482,7 @@ Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
 [Get git SHAs, dispatch code quality reviewer]
 Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
 
-[Update implementation-plan.md for Task 1:]
+[Update implementation-tracker.md for Task 1:]
 - [x] Task 1: Hook installation script
   **Tests:**
   - ✓ Install hook to user config directory
@@ -525,7 +525,7 @@ Implementer: Extracted PROGRESS_INTERVAL constant
 [Code reviewer reviews again]
 Code reviewer: ✅ Approved
 
-[Update implementation-plan.md for Task 2:]
+[Update implementation-tracker.md for Task 2:]
 - [x] Task 2: Recovery modes
   **Tests:**
   - ✓ Verify detects all 4 issue types

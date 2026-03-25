@@ -15,8 +15,8 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `docs/<project>/<feature>/implementation-plan.md`
-- Default format: `docs/<project-name>/<feature-name>/implementation-plan.md`
+**Save plans to:** `docs/<project>/<feature>/implementation-tracker.md`
+- Default format: `docs/<project-name>/<feature-name>/implementation-tracker.md`
 - Automatically detect project name from git root or current directory
 - User preferences (from project CLAUDE.md or ~/.claude/config) override this default
 - Legacy path `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` still supported for compatibility
@@ -223,7 +223,7 @@ After writing the complete plan:
 **Announce transition clearly:**
 ```
 Plan review passed ✓
-Plan saved to `docs/<project>/<feature>/implementation-plan.md`
+Plan saved to `docs/<project>/<feature>/implementation-tracker.md`
 
 Starting Stage 5: Implementation
 Dispatching implementers:

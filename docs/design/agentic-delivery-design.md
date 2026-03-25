@@ -87,7 +87,7 @@
 │ Stage 4: 实现计划编写             │
 │ 主 agent 编写 plan               │
 │ dispatch: Plan Reviewer subagent │
-│ 产出: implementation-plan.md     │
+│ 产出: implementation-tracker.md     │
 └──────────────┬──────────────────┘
                ▼
 ┌─────────────────────────────────┐
@@ -234,7 +234,7 @@
 > 只有确认无文件交集的 task 才允许标记为可并行。
 > 这是编排层的职责，在 plan 阶段就必须明确，不能留到执行阶段再处理。
 
-**产出**：`docs/<project>/<feature>/implementation-plan.md`
+**产出**：`docs/<project>/<feature>/implementation-tracker.md`
 
 **Plan 文档格式**：
 
@@ -282,7 +282,7 @@
 **执行者**：per-task Implementer subagent
 
 **主 agent 职责**（编排）：
-1. 读取 implementation-plan.md，一次性提取所有 task 文本
+1. 读取 implementation-tracker.md，一次性提取所有 task 文本
 2. 按依赖关系决定执行顺序：
    - 无依赖的 task → 并行 dispatch（使用 `dispatching-parallel-agents` 模式）
    - 有依赖的 task → 顺序 dispatch
@@ -389,7 +389,7 @@ Implementer 返回 DONE
 |------|------|------|
 | 项目上下文 | docs/project-context.md | 已复用/已生成 |
 | 需求设计 | docs/\<project\>/\<feature\>/design-spec.md | 已确认 |
-| 实现计划 | docs/\<project\>/\<feature\>/implementation-plan.md | 已确认 |
+| 实现计划 | docs/\<project\>/\<feature\>/implementation-tracker.md | 已确认 |
 | 代码实现 | [文件变更列表] | 已完成 |
 | Review | 全部通过 | N 轮 fix |
 | 文档同步 | docs/\<project\>/\<feature\>/changelog.md | 已更新 |
@@ -553,12 +553,12 @@ docs/
     │
     ├── <feature-or-module-A>/
     │   ├── design-spec.md                 # Stage 3 产出：需求设计文档
-    │   ├── implementation-plan.md         # Stage 4 产出：实现计划
+    │   ├── implementation-tracker.md         # Stage 4 产出：实现计划
     │   └── changelog.md                   # Stage 6 产出：变更记录
     │
     └── <feature-or-module-B>/
         ├── design-spec.md
-        ├── implementation-plan.md
+        ├── implementation-tracker.md
         └── changelog.md
 ```
 

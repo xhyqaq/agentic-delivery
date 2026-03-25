@@ -45,7 +45,7 @@ As of 2026-03-25, the agentic-delivery system switched from **Traditional Code R
 **Option 2: Migrate to new system (Recommended)**
 - Complete current tasks with old system
 - For new tasks in the same feature:
-  1. Update `implementation-plan.md` to add **Test Strategy** section for remaining tasks
+  1. Update `implementation-tracker.md` to add **Test Strategy** section for remaining tasks
   2. Ensure Implementer provides **Test Verification Data** in reports
   3. System will automatically use Test Verification Agent
 
@@ -175,7 +175,7 @@ Target    | 80%    | 75%      | 90%
 
 ### "How do I know what tests to write?"
 
-Read your task's **Test Expectations** in `implementation-plan.md`. It lists:
+Read your task's **Test Expectations** in `implementation-tracker.md`. It lists:
 - Happy path tests (≥1)
 - Edge case tests (≥2)
 - Error case tests (≥2)

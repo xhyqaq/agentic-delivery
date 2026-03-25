@@ -41,7 +41,7 @@ Behavioral details live in the individual skills and `runtime-policies.md`. This
 - **Parallel Task Execution**: Independent tasks run in parallel, file conflicts prevented at plan stage
 - **Model Selection Strategy**: Use cheapest model per role (Fast/Standard/Capable)
 - **Platform Adaptation**: Works on Claude Code, Codex, Cursor, OpenCode, Gemini
-- **Cross-Session Recovery**: Resume from existing design-spec.md or implementation-plan.md
+- **Cross-Session Recovery**: Resume from existing design-spec.md or implementation-tracker.md
 
 ## Skills Included
 
@@ -171,7 +171,7 @@ If needed, install separately from [obra/superpowers](https://github.com/obra/su
 - **Minimum Context Principle**: Each subagent receives only task text + relevant spec fragment, never full session history
 - **File Conflict Prevention**: Plan stage marks file overlaps, prevents parallel execution of conflicting tasks
 - **Stateless Subagents**: Fresh instance per dispatch via Claude Code's Task tool, no context carryover
-- **Document Standardization**: Fixed templates embedded in subagent prompts (project-context.md, design-spec.md, implementation-plan.md, changelog.md)
+- **Document Standardization**: Fixed templates embedded in subagent prompts (project-context.md, design-spec.md, implementation-tracker.md, changelog.md)
 - **Authority Model**: `runtime-policies.md` and the skills define behavior; design docs and README explain it
 
 ## License

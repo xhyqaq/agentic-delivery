@@ -59,8 +59,8 @@ Analyze the user's request and classify:
 
 **Cross-session reuse:** Check `docs/<project>/<feature>/` for existing artifacts:
 - `design-spec.md` exists → skip Stage 3
-- `implementation-plan.md` exists → skip Stage 4
-- `implementation-plan.md` has tasks marked `[x]` → skip completed tasks in Stage 5, resume from first unchecked task
+- `implementation-tracker.md` exists → skip Stage 4
+- `implementation-tracker.md` has tasks marked `[x]` → skip completed tasks in Stage 5, resume from first unchecked task
 
 ## Full Pipeline (Large Feature)
 
@@ -188,7 +188,7 @@ Main agent writes detailed plan:
 > Tasks sharing ANY file MUST be sequential. Only tasks with zero file overlap may be parallel.
 > This is decided at plan time, NOT execution time.
 
-**Output:** `docs/<project>/<feature>/implementation-plan.md`
+**Output:** `docs/<project>/<feature>/implementation-tracker.md`
 
 **REQUIRED SUB-SKILL:** Follow writing-plans skill.
 
@@ -225,7 +225,7 @@ Dispatching N implementers for parallel execution...
 **Pre-execution validation:**
 Before entering Stage 5, verify:
 - Subagent dispatch capability is available (spawn_agent or Task tool)
-- `implementation-plan.md` exists and contains tasks
+- `implementation-tracker.md` exists and contains tasks
 - You have read and parsed all tasks from the plan
 
 **Stage 5A: Review Track Selection (NEW - Smart Routing)**
@@ -297,7 +297,7 @@ def detect_domains(files):
     return list(domains)
 
 # 主流程：对每个任务执行分析
-for task in implementation_plan.tasks:
+for task in implementation_tracker.tasks:
     track, reason = assign_review_track(task)
     task.metadata["review_track"] = track
     log(f"Task {task.id} ({task.name}): {track} Track - {reason}")
@@ -606,7 +606,7 @@ else:
 **Step 1: Extract from Plan (Task N's Test Strategy)**
 ```python
 # Pseudo-code
-task = read_implementation_plan()["Task N"]
+task = read_implementation_tracker()["Task N"]
 test_strategy = task["Test Strategy"]
 
 coverage_targets = {
@@ -685,8 +685,8 @@ if decision == "approve":
         review_summary="Test Verification passed (N rounds)"
     )
 
-    # Update implementation-plan.md after Test Verification approves
-    update_implementation_plan_after_verification(
+    # Update implementation-tracker.md after Test Verification approves
+    update_implementation_tracker_after_verification(
         task_id=task_id,
         task_name=task_name,
         implementer_report=implementer_report,
@@ -696,13 +696,13 @@ if decision == "approve":
 
 ### Update Implementation Plan After Test Verification
 
-After Test Verification Agent approves, update the implementation-plan.md:
+After Test Verification Agent approves, update the implementation-tracker.md:
 
 ```python
 # Pseudo-code for orchestrator
-def update_implementation_plan_after_verification(task_id, task_name, implementer_report, verification_result):
+def update_implementation_tracker_after_verification(task_id, task_name, implementer_report, verification_result):
     """
-    Update implementation-plan.md after Test Verification approves.
+    Update implementation-tracker.md after Test Verification approves.
 
     Args:
         task_id: Task number (e.g., 1)
@@ -727,7 +727,7 @@ def update_implementation_plan_after_verification(task_id, task_name, implemente
 """
 
     # Find the task in plan
-    plan_content = read_file("docs/<project>/<feature>/implementation-plan.md")
+    plan_content = read_file("docs/<project>/<feature>/implementation-tracker.md")
 
     # Update task checkbox from [ ] to [x]
     updated_content = plan_content.replace(
@@ -744,9 +744,9 @@ def update_implementation_plan_after_verification(task_id, task_name, implemente
     updated_content = insert_text_at(updated_content, insertion_point, completion_text)
 
     # Write back to plan
-    write_file("docs/<project>/<feature>/implementation-plan.md", updated_content)
+    write_file("docs/<project>/<feature>/implementation-tracker.md", updated_content)
 
-    log(f"✅ Task {task_id} marked complete in implementation-plan.md")
+    log(f"✅ Task {task_id} marked complete in implementation-tracker.md")
     log(f"   Checkpoint: {checkpoint_commit[:7]}")
     log(f"   Verified: {verified_timestamp}")
 
@@ -756,7 +756,7 @@ if verification_result["overall_status"] == "PASS":
     dispatch_doc_syncer(...)
 
     # Then update implementation plan
-    update_implementation_plan_after_verification(
+    update_implementation_tracker_after_verification(
         task_id=current_task_id,
         task_name=current_task_name,
         implementer_report=implementer_result,

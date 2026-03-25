@@ -185,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Intent Recognition** (Stage 0): Classify tasks as Large Feature / Small Change / Bug Fix
 - **7-Stage Full Pipeline**: Doc Scan → Requirement Analysis → Design → Plan → Implementation → Review → Summary
 - **3 Workflow Paths**: Full Pipeline, Fast Path (small changes), Debug Path (bug fixes)
-- **Cross-Session Recovery**: Reuse existing design-spec.md and implementation-plan.md
+- **Cross-Session Recovery**: Reuse existing design-spec.md and implementation-tracker.md
 
 #### Skills (12 total)
 
