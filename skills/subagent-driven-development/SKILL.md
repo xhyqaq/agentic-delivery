@@ -64,50 +64,47 @@ digraph process {
         "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
         "Implementer subagent asks questions?" [shape=diamond];
         "Answer questions, provide context" [shape=box];
-        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
-        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
-        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
-        "Implementer subagent fixes spec gaps" [shape=box];
-        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
-        "Code quality reviewer subagent approves?" [shape=diamond];
-        "Implementer subagent fixes quality issues" [shape=box];
-        "Mark task complete in TodoWrite" [shape=box];
+        "Implementer subagent implements, tests, runs verification, commits" [shape=box];
+        "Implementer reports: DONE + Test Verification Data" [shape=box];
+
+        "(If Standard/Heavy Track) Main agent: inline spec check" [shape=box style=dashed];
+        "Spec compliant?" [shape=diamond];
+        "Dispatch Fix Agent for spec issues" [shape=box];
+
+        "Main agent: prepare test verification input" [shape=box];
+        "Dispatch test verification agent (./test-verification-agent-prompt.md)" [shape=box];
+        "Test verification agent verifies: tests/coverage/linter" [shape=box];
+        "Test verification agent approves?" [shape=diamond];
+        "Dispatch Fix Agent for test/coverage/linter issues" [shape=box];
+        "Mark task complete, update plan checkbox" [shape=box];
     }
 
     "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
     "More tasks remain?" [shape=diamond];
-    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "(If Heavy Track + multi-domain) Dispatch integration reviewer" [shape=box];
     "Use finishing-a-development-branch skill" [shape=box style=filled fillcolor=lightgreen];
 
     "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
     "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
-    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
-    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
-    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
-    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
-    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
-    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
-    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
-    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
-    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
-    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
-    "Mark task complete in TodoWrite" -> "Update plan checkbox to [x]";
-    "Update plan checkbox to [x]" -> "More tasks remain?";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, runs verification, commits" [label="no"];
+    "Implementer subagent implements, tests, runs verification, commits" -> "Implementer reports: DONE + Test Verification Data";
+    "Implementer reports: DONE + Test Verification Data" -> "(If Standard/Heavy Track) Main agent: inline spec check";
+    "(If Standard/Heavy Track) Main agent: inline spec check" -> "Spec compliant?";
+    "Spec compliant?" -> "Dispatch Fix Agent for spec issues" [label="no"];
+    "Dispatch Fix Agent for spec issues" -> "(If Standard/Heavy Track) Main agent: inline spec check" [label="re-check"];
+    "Spec compliant?" -> "Main agent: prepare test verification input" [label="yes"];
+    "Main agent: prepare test verification input" -> "Dispatch test verification agent (./test-verification-agent-prompt.md)";
+    "Dispatch test verification agent (./test-verification-agent-prompt.md)" -> "Test verification agent verifies: tests/coverage/linter";
+    "Test verification agent verifies: tests/coverage/linter" -> "Test verification agent approves?";
+    "Test verification agent approves?" -> "Dispatch Fix Agent for test/coverage/linter issues" [label="no"];
+    "Dispatch Fix Agent for test/coverage/linter issues" -> "Dispatch test verification agent (./test-verification-agent-prompt.md)" [label="re-verify"];
+    "Test verification agent approves?" -> "Mark task complete, update plan checkbox" [label="yes"];
+    "Mark task complete, update plan checkbox" -> "More tasks remain?";
     "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
-    "More tasks remain?" -> "Check if integration review needed?" [label="no"];
-    "Check if integration review needed?" [shape=diamond];
-    "Check if integration review needed?" -> "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [label="yes - has frontend+backend"];
-    "Check if integration review needed?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no - single domain"];
-    "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [shape=box];
-    "Integration verified?" [shape=diamond];
-    "Dispatch integration reviewer (./integration-reviewer-prompt.md)" -> "Integration verified?";
-    "Integration verified?" -> "Dispatch fix subagent for integration issues" [label="no"];
-    "Dispatch fix subagent for integration issues" [shape=box];
-    "Dispatch fix subagent for integration issues" -> "Dispatch integration reviewer (./integration-reviewer-prompt.md)" [label="re-verify"];
-    "Integration verified?" -> "Dispatch final code reviewer subagent for entire implementation" [label="yes"];
-    "Dispatch final code reviewer subagent for entire implementation" -> "Use finishing-a-development-branch skill";
+    "More tasks remain?" -> "(If Heavy Track + multi-domain) Dispatch integration reviewer" [label="no"];
+    "(If Heavy Track + multi-domain) Dispatch integration reviewer" -> "Use finishing-a-development-branch skill";
 }
 ```
 
@@ -301,10 +298,13 @@ elif (task.track == "Heavy"):
 
 Implementer subagents report one of four statuses. Handle each appropriately based on the task's review track.
 
-**DONE:** Proceed to review based on track:
-- Fast Track → Code Quality Review only
-- Standard Track → Spec Compliance Review first
-- Heavy Track → Spec Compliance Review first
+**DONE:** Proceed to verification based on track:
+- Fast Track → Test Verification only
+- Standard Track → Inline Spec Check → Test Verification
+- Heavy Track → Inline Spec Check → Test Verification → Integration Review (if multi-domain)
+
+**Why inline spec check:**
+Spec check is fast (read requirements list vs implementer claims), no need for subagent overhead. Only dispatch subagent for computationally expensive verification (running tests, checking coverage).
 
 **DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
 
@@ -364,11 +364,12 @@ See `review-fix-strategy/SKILL.md` for detailed fix strategy selection logic.
 ## Prompt Templates
 
 - `./implementer-prompt.md` - Dispatch implementer subagent
-- `./unified-reviewer-prompt.md` - **RECOMMENDED:** Dispatch unified reviewer (spec + quality in one call)
-- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent (if using sequential strategy)
-- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent (if using sequential strategy)
+- `./test-verification-agent-prompt.md` - **RECOMMENDED:** Dispatch test verification agent (verify tests/coverage/linter)
+- `./unified-reviewer-prompt.md` - ⚠️ Deprecated: Legacy code review (spec + quality in one call)
+- `./spec-reviewer-prompt.md` - ⚠️ Deprecated: Legacy spec compliance reviewer
+- `./code-quality-reviewer-prompt.md` - ⚠️ Deprecated: Legacy code quality reviewer
 - `./integration-reviewer-prompt.md` - Dispatch integration reviewer subagent (for multi-domain plans)
-- `./fix-agent-prompt.md` - Dispatch fix agent subagent (when review fails, dispatched by orchestrator)
+- `./fix-agent-prompt.md` - Dispatch fix agent subagent (when verification fails, dispatched by orchestrator)
 
 ## Integration Review (for Multi-Domain Plans)
 

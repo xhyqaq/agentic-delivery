@@ -362,121 +362,319 @@ If multiple implementers ran in parallel, verify their commits merge cleanly:
 
 **ENFORCEMENT:** See `runtime-policies.md` § Required Subagents for failure handling and violation detection.
 
-### Stage 6: Review Loop
+### Stage 6: Test-Driven Verification
 
-**Three review strategies based on task track:**
+**Core principle:** 用客观的测试结果（tests pass + coverage）替代主观的 Code Review
 
-#### Strategy A: Fast Track (Code Quality Only)
+**Verification strategies based on task track:**
+- Fast Track: Test Verification only（简单任务）
+- Standard Track: Test Verification + Spec Check（典型任务）
+- Heavy Track: Test Verification + Spec Check + Integration（复杂任务）
 
-For simple tasks (single file < 50 lines, pure utility):
-
-```
-Implementer returns DONE
-       │
-       ▼
-  Code Quality Review ONLY (skip spec review)
-       │
-       ├── Pass → Mark task complete → Doc Sync → next task
-       └── Fail → Fix (max 1 round) → re-review or escalate
-```
-
-**Cost:** 1 subagent call per task
-**Max rounds:** 1 (simple tasks should pass quickly)
-**When to use:** Tasks assigned Fast Track in Stage 5A
-
-#### Strategy B: Standard Track (Spec + Code Quality)
-
-For typical feature tasks (multi-file, new APIs, business logic):
-
-**Option B1: Sequential Two-Stage Review (Original)**
-
-Per-task, in strict order:
-
-```
-Implementer returns DONE
-       │
-       ▼
-  Spec Compliance Review (subagent)
-       │
-       ├── Pass → Code Quality Review (subagent)
-       │              │
-       │              ├── Pass → Mark task complete → Doc Sync → next task
-       │              └── Fail → Fix (see review-fix-strategy) → re-review
-       │
-       └── Fail → Fix (see review-fix-strategy) → re-review
-```
-
-**Cost:** 2 subagent calls per task (minimum)
-**Max rounds:** 2
-**When to use:** Exceptionally complex tasks where separate detailed reviews add value
-
-**Option B2: Unified Review (Optimized - RECOMMENDED)**
-
-Per-task:
-
-```
-Implementer returns DONE
-       │
-       ▼
-  Unified Reviewer (single subagent, two internal stages)
-       │
-       ├── Stage 1 (Spec) ✅ + Stage 2 (Quality) ✅ → approve
-       ├── Stage 1 (Spec) ❌ → skip Stage 2 → fix_spec_first
-       ├── Stage 1 (Spec) ✅ + Stage 2 (Quality) ❌ → fix_quality
-       └── Both fail → fix_both
-       │
-       ▼
-  (if issues) Fix → Unified Re-review → ...
-       │
-       ▼
-  (if approved) Mark task complete → Doc Sync → next task
-```
-
-**Cost:** 1 subagent call per task (minimum)
-**Max rounds:** 2
-**Performance:** ~40% faster than Strategy B1 (halves review overhead)
-**Quality:** Same standards (internal two-stage check preserved)
-
-**Default:** Use Option B2 (Unified Review) for standard tasks.
-
-#### Strategy C: Heavy Track (Spec + Code + Integration)
-
-For complex cross-domain or security-sensitive tasks:
-
-```
-Implementer returns DONE
-       │
-       ▼
-  Unified Reviewer (Spec + Code Quality)
-       │
-       ├── Pass → Integration Review (subagent)
-       │              │
-       │              ├── Pass → Mark task complete → Doc Sync → next task
-       │              └── Fail → Fix integration → re-verify
-       │
-       └── Fail → Fix → re-review
-```
-
-**Cost:** 2 subagent calls per task (unified + integration)
-**Max rounds:** 3 (complexity warrants more attempts)
-**When to use:** Tasks assigned Heavy Track in Stage 5A (cross-domain, architecture changes, security-sensitive)
+**Why Test-Driven:**
+- Speed: ~30s vs 2-5 min (4-10x faster)
+- Objectivity: Pass/fail based on metrics, not opinions
+- Repeatability: Same input → same result
+- Traceability: Test reports + coverage data as evidence
 
 ---
 
-**Order is preserved in all strategies:** Spec Compliance FIRST (if applicable), then Code Quality. No point reviewing quality if it doesn't meet spec.
+#### Strategy A: Fast Track (Test Verification Only)
 
-**Max rounds by track:**
-- Fast Track: 1 round
-- Standard Track: 2 rounds
-- Heavy Track: 3 rounds
-Exceeds → escalate to user.
+**When to use:** Tasks assigned Fast Track in Stage 5A (single file < 50 lines, pure utility)
+
+**Flow:**
+```
+Implementer returns DONE (with Test Verification Data)
+       │
+       ▼
+  Main Agent extracts data from implementer report:
+    - Test execution output
+    - Coverage report (actual vs target)
+    - Linter output
+    - Checkpoint commit SHA
+       │
+       ▼
+  Dispatch Test Verification Agent
+    Input:
+      - Task description (from plan)
+      - Coverage targets (from plan Test Strategy)
+      - Test expectations (from plan Test Strategy)
+      - Implementer's test data
+      - Checkpoint commit SHA
+       │
+       ▼
+  Test Verification Agent returns decision:
+    ├─ approve → Mark task complete → Doc Sync → next task
+    ├─ fix_tests → Dispatch Fix Agent → re-verify
+    ├─ fix_coverage → Dispatch Fix Agent → re-verify
+    └─ fix_linter → Dispatch Fix Agent → re-verify
+```
+
+**Cost:** 1 subagent call (test-verification-agent)
+**Max rounds:** 1 (simple tasks should pass quickly)
+
+#### Strategy B: Standard Track (Spec Check + Test Verification)
+
+**When to use:** Tasks assigned Standard Track in Stage 5A (multi-file, new APIs, business logic)
+
+**Flow:**
+```
+Implementer returns DONE (with Test Verification Data)
+       │
+       ▼
+  Main Agent performs Spec Compliance Check (inline, not subagent):
+    - Read task requirements
+    - Read implementer report (what they claim they built)
+    - Compare: all requirements met? any extra features?
+       │
+       ├─ All requirements met → proceed to test verification
+       └─ Missing/extra → Dispatch Fix Agent → restart from spec check
+       │
+       ▼
+  Dispatch Test Verification Agent
+    (same as Fast Track)
+       │
+       ▼
+  Test Verification Agent returns decision:
+    ├─ approve → Mark task complete → Doc Sync → next task
+    └─ fix_* → Dispatch Fix Agent → re-verify
+```
+
+**Cost:** 0-1 subagent calls (test-verification-agent; spec check is inline)
+**Max rounds:** 2
+**Why inline spec check:** Spec check is fast (read requirements list), no need for subagent overhead
+
+#### Strategy C: Heavy Track (Spec + Test Verification + Integration)
+
+**When to use:** Tasks assigned Heavy Track in Stage 5A (cross-domain, architecture changes, security-sensitive)
+
+**Flow:**
+```
+Implementer returns DONE
+       │
+       ▼
+  Main Agent: Inline Spec Check
+       │
+       ├─ Pass → continue
+       └─ Fail → Fix → restart
+       │
+       ▼
+  Dispatch Test Verification Agent
+       │
+       ├─ approve → continue to integration check
+       └─ fix_* → Fix → re-verify
+       │
+       ▼
+  (If multi-domain) Dispatch Integration Reviewer
+    Input:
+      - Design spec (API contract section)
+      - Backend task git diffs
+      - Frontend task git diffs
+    Check:
+      - API contract consistency
+      - Data flow completeness
+      - Error handling alignment
+       │
+       ├─ verified → Mark task complete → Doc Sync
+       └─ issues → Dispatch Fix Agent → re-verify integration
+```
+
+**Cost:** 1-2 subagent calls (test-verification + integration)
+**Max rounds:** 3
+
+---
+
+## How Orchestrator Prepares Test Verification Agent Input
+
+**Step 1: Extract from Plan (Task N's Test Strategy)**
+```python
+# Pseudo-code
+task = read_implementation_plan()["Task N"]
+test_strategy = task["Test Strategy"]
+
+coverage_targets = {
+    "line": test_strategy["Coverage Targets"]["Line"],      # e.g., 80
+    "branch": test_strategy["Coverage Targets"]["Branch"],  # e.g., 75
+    "function": test_strategy["Coverage Targets"]["Function"] # e.g., 90
+}
+
+test_expectations = test_strategy["Test Expectations"]  # List of expected tests
+```
+
+**Step 2: Extract from Implementer Report**
+```python
+implementer_report = implementer_subagent.result
+
+test_data = {
+    "test_execution_output": implementer_report["Test Verification Data"]["Test Execution Output"],
+    "coverage_report": implementer_report["Test Verification Data"]["Coverage Report"],
+    "linter_output": implementer_report["Test Verification Data"]["Linter Output"],
+    "checkpoint_commit": implementer_report["Checkpoint Commit"]
+}
+
+checklist = implementer_report["Pre-Submission Checklist Results"]
+```
+
+**Step 3: Construct Test Verification Agent Prompt**
+```python
+test_verification_prompt = f"""
+You are verifying the test results for Task {task_id}: {task_name}
+
+## Task Description
+{task["description"]}
+
+## Coverage Targets (from Plan)
+- Line: ≥ {coverage_targets["line"]}%
+- Branch: ≥ {coverage_targets["branch"]}%
+- Function: ≥ {coverage_targets["function"]}%
+
+## Test Expectations (from Plan)
+{test_expectations}
+
+## Implementer's Test Data
+### Test Execution Output:
+{test_data["test_execution_output"]}
+
+### Coverage Report:
+{test_data["coverage_report"]}
+
+### Linter Output:
+{test_data["linter_output"]}
+
+### Checkpoint Commit:
+{test_data["checkpoint_commit"]}
+
+## Implementer's Checklist:
+{checklist}
+
+[... rest of prompt from test-verification-agent-prompt.md ...]
+"""
+
+dispatch_test_verification_agent(prompt=test_verification_prompt)
+```
+
+## Handling Test Verification Agent Decisions
+
+**Decision: `approve`**
+```python
+if decision == "approve":
+    # Mark task complete
+    update_task_status(task_id, "completed")
+
+    # Dispatch doc-syncer
+    dispatch_doc_syncer(
+        task_name=task_name,
+        changed_files=implementer_report["Files Changed"],
+        review_summary="Test Verification passed (N rounds)"
+    )
+
+    # Proceed to next task
+    next_task()
+```
+
+**Decision: `fix_tests`**
+```python
+if decision == "fix_tests":
+    # Issue: tests failed or incomplete
+    # Dispatch Fix Agent to fix tests
+
+    fix_prompt = f"""
+    Task: {task_name}
+
+    Issue: Test Verification Agent reported:
+    {decision["issues"]}
+
+    Fix needed:
+    - Missing tests: {decision["verification_results"]["test_completeness"]["missing"]}
+    - Failed tests: {decision["verification_results"]["test_execution"]["failed"]}
+
+    Your job:
+    1. Add missing tests OR fix failing tests
+    2. Run tests to verify they pass
+    3. Report back with updated test output
+    """
+
+    dispatch_fix_agent(prompt=fix_prompt, severity="Important")
+
+    # After fix:
+    # Re-dispatch Test Verification Agent with updated data
+    re_verify()
+```
+
+**Decision: `fix_coverage`**
+```python
+if decision == "fix_coverage":
+    # Issue: coverage below targets
+    gaps = decision["verification_results"]["coverage"]
+
+    fix_prompt = f"""
+    Task: {task_name}
+
+    Issue: Coverage gaps:
+    - Line: {gaps["line"]["actual"]}% < {gaps["line"]["target"]}% (gap: {gaps["line"]["gap"]})
+    - Branch: {gaps["branch"]["actual"]}% < {gaps["branch"]["target"]}% (gap: {gaps["branch"]["gap"]})
+    - Function: {gaps["function"]["actual"]}% < {gaps["function"]["target"]}% (gap: {gaps["function"]["gap"]})
+
+    Your job:
+    1. Add tests to cover uncovered lines/branches/functions
+    2. Run tests with --coverage
+    3. Report back with updated coverage report
+    """
+
+    dispatch_fix_agent(prompt=fix_prompt, severity="Important")
+    re_verify()
+```
+
+**Decision: `fix_linter`**
+```python
+if decision == "fix_linter":
+    # Issue: linter errors
+    linter_result = decision["verification_results"]["linter"]
+
+    fix_prompt = f"""
+    Task: {task_name}
+
+    Issue: Linter errors: {linter_result["errors"]}
+
+    Linter output:
+    {linter_result["output"]}
+
+    Your job:
+    1. Fix all linter errors
+    2. Run linter to verify 0 errors
+    3. Report back with clean linter output
+    """
+
+    dispatch_fix_agent(prompt=fix_prompt, severity="Minor")
+    re_verify()
+```
+
+**Max rounds exceeded:**
+```python
+round_count = count_verification_rounds(task_id)
+
+if round_count > max_rounds[track]:
+    # Fast Track: 1 round
+    # Standard Track: 2 rounds
+    # Heavy Track: 3 rounds
+
+    escalate_to_user(
+        task_id=task_id,
+        issue="Test verification failed after {round_count} rounds",
+        attempts=all_verification_attempts,
+        recommendation="Manual review needed"
+    )
+```
+
+---
 
 **Commit strategy:**
-- Implementer creates a checkpoint commit after implementation and local verification
-- Each review-driven fix creates a separate fix commit
-- A task is complete only after Spec Compliance and Code Quality both pass
+- Implementer creates a checkpoint commit after implementation and local test verification
+- Each verification-driven fix creates a separate fix commit
+- A task is complete only after Test Verification passes (and Spec Check if applicable)
 
-**After reviews pass:** Dispatch doc-syncer subagent using `doc-syncer-prompt.md` to update `docs/<project>/<feature>/changelog.md`.
+**After verification passes:** Dispatch doc-syncer subagent using `doc-syncer-prompt.md` to update `docs/<project>/<feature>/changelog.md`.
 
 **调用方式：**
 ```
@@ -489,9 +687,9 @@ Task tool:
 **See:** `doc-syncer/doc-syncer-prompt.md` for complete dispatch template
 
 **⚠️ SUBAGENT LIFECYCLE REMINDER:**
-- **After each reviewer returns:** Close immediately (Codex: `close_agent(agent_id)`; Claude Code: auto)
+- **After test-verification-agent returns:** Close immediately (Codex: `close_agent(agent_id)`; Claude Code: auto)
 - **Before next dispatch:** Pre-dispatch cleanup check
-- **Reviewer lifecycle:** Spec reviewer → close → Code quality reviewer → close → Doc syncer → close
+- **Agent lifecycle:** Test-verification-agent → close → (if needed) Fix agent → close → Doc syncer → close
 - **Integration reviewer:** Close after integration report processed
 - See `runtime-policies.md` § Subagent Lifecycle for enforcement rules
 
@@ -502,6 +700,54 @@ Task tool:
 - If verified → Proceed to Stage 7
 
 **REQUIRED SUB-SKILL:** Use review-fix-strategy for fix decisions.
+
+---
+
+## Test-Driven Verification vs Traditional Code Review
+
+**Why we switched:**
+
+| Dimension | Traditional Code Review | Test-Driven Verification |
+|-----------|------------------------|--------------------------|
+| **Speed** | 2-5 min per task | ~30s per task (4-10x faster) |
+| **Cost** | 2-4 subagent calls | 1 subagent call (50-75% reduction) |
+| **Objectivity** | Subjective ("code looks good") | Objective (tests pass + coverage ≥ threshold) |
+| **Repeatability** | Different reviewers → different results | Same input → same result |
+| **Evidence** | Text opinions | Test reports + coverage data |
+| **Verification** | Human reads code | Machine runs tests |
+
+**What we gained:**
+- ✅ Faster verification (30s vs 2-5 min)
+- ✅ Objective pass/fail criteria
+- ✅ Complete reproducibility
+- ✅ Traceable evidence (test outputs)
+- ✅ Coverage metrics
+
+**What we traded:**
+- ❌ Lost subjective code architecture review (now rely on tests + linter)
+- ❌ Lost security vulnerability detection (now rely on tests + linter security plugins)
+- ⚠️ Dependent on test quality (if tests are bad, verification passes bad code)
+
+**Mitigation for trade-offs:**
+- Use comprehensive linter with security plugins
+- Require high coverage thresholds (≥80% line, ≥75% branch)
+- Plan stage ensures Test Strategy is complete
+- Spec check (Standard/Heavy tracks) ensures requirements met
+
+## Legacy: Traditional Code Review (Deprecated)
+
+**Status:** ⚠️ Deprecated - kept for backward compatibility only
+
+The following review strategies are **no longer recommended**:
+- Unified Reviewer (spec + code quality in one subagent)
+- Sequential Two-Stage Review (spec reviewer → code quality reviewer)
+
+**When to use (rare cases):**
+- Project has no test infrastructure (no Jest/Vitest/Pytest)
+- Task is not testable (e.g., pure documentation changes)
+- User explicitly requests traditional review
+
+**Prompts:** See `subagent-driven-development/unified-reviewer-prompt.md` (deprecated)
 
 ### Stage 7: Summary + Project Context Update
 

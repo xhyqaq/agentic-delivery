@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Test-Driven Verification System - Documentation Integration (2026-03-25)
+
+**Status:** Completed integration of Test-Driven Verification into orchestration layer
+
+**Problem:**
+- Core components (test-verification-agent, implementer report format, plan format) were complete (75%)
+- But orchestration documents (agentic-delivery/SKILL.md, subagent-driven-development/SKILL.md) still described old Code Review system
+- Orchestrator would follow old documentation, ignoring new system
+
+**What Changed:**
+
+1. **Rewrote `agentic-delivery/SKILL.md` Stage 6** (Lines 365-680)
+   - Changed title from "Review Loop" to "Test-Driven Verification"
+   - Defined new verification strategies:
+     - Fast Track: Test Verification only (~30s)
+     - Standard Track: Inline Spec Check + Test Verification
+     - Heavy Track: Inline Spec Check + Test Verification + Integration
+   - Added "How Orchestrator Prepares Test Verification Agent Input" section
+   - Added "Handling Test Verification Agent Decisions" section (approve/fix_tests/fix_coverage/fix_linter)
+   - Added comparison table: Test-Driven vs Traditional Code Review
+   - Marked old system as "Deprecated" (kept for backward compatibility)
+
+2. **Updated `subagent-driven-development/SKILL.md`**
+   - Updated flowchart: replaced "spec reviewer → code quality reviewer" with "inline spec check → test verification agent"
+   - Updated "Handling Implementer Status" to describe verification-based flow
+   - Updated "Prompt Templates" list: marked old reviewer prompts as deprecated, promoted test-verification-agent-prompt.md as recommended
+
+3. **Created Migration Guide** (`docs/MIGRATION_TO_TEST_VERIFICATION.md`)
+   - Explained system changes and rationale
+   - Provided migration path for in-progress features
+   - Documented new report format requirements for implementers
+   - Documented new plan format requirements (Test Strategy section)
+   - Added troubleshooting section
+
+4. **Updated CHANGELOG** (this entry)
+
+**Performance Impact:**
+- Speed: 2-5 min → ~30s per task (4-10x faster)
+- Cost: 2-4 subagent calls → 1 call (50-75% reduction)
+- Token usage: ~8000 → ~3000 (62.5% reduction)
+
+**Migration:**
+- New projects: automatically use Test-Driven Verification
+- In-progress projects: can continue with legacy code review (set `use_test_verification: false`)
+- Timeline: Legacy system will be removed 2026-09-30
+
+**Key Design Decision:**
+- **Spec check changed to inline** (not subagent): fast comparison of requirements list vs implementer claims, no need for expensive subagent dispatch
+- **Test verification remains subagent**: requires running tests, checking coverage, verifying linter - computationally expensive, benefits from isolation
+
+---
+
 ### Added
 
 #### Test-Driven Verification System (2026-03-25) - MAJOR FEATURE
