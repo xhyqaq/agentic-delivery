@@ -136,7 +136,19 @@ function(invalid_input) → raises SpecificError
   - Defining type interfaces or data structures
 - Exact commands with expected output
 - In execution plans, "commit" means a review checkpoint commit unless explicitly stated otherwise
-- Task checkboxes (`- [ ]`) are used for cross-session progress tracking. The orchestrator marks tasks `[x]` after review passes
+- Task checkboxes (`- [ ]`) are used for cross-session progress tracking. After a task completes both review stages, the orchestrator adds a test summary section before marking steps as complete:
+  ```markdown
+  ### Task N: [Component Name]
+
+  **Tests:** (added after completion)
+  - ✓ [test case 1]
+  - ✓ [test case 2]
+  **Test file:** `path/to/test.file`
+  **Commit:** [SHA]
+
+  **Files:**
+  ...
+  ```
 - Reference relevant skills with @ syntax
 - DRY, YAGNI, TDD, frequent commits
 

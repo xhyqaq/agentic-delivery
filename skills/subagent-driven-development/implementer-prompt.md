@@ -103,10 +103,12 @@ Task tool (general-purpose):
 
     When done, report:
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - What you implemented (or what you attempted, if blocked)
-    - What you tested and test results
-    - Whether you created the checkpoint commit
-    - Files changed
+    - **What you implemented:** (brief summary)
+    - **Tests executed:** (list each test case with result, e.g., "✓ Valid input → 200 response", "✓ Invalid token → 401 error")
+    - **Test file:** (path to test file, e.g., `tests/auth.test.ts`)
+    - **Test results:** (all passed? any failures?)
+    - **Checkpoint commit:** (SHA)
+    - **Files changed:** (list)
     - Self-review findings (if any)
     - Any issues or concerns
 

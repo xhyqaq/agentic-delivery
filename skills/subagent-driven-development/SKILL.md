@@ -13,7 +13,19 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Commit semantics:** implementer commits are checkpoints for review and rollback. A task is not complete until both review stages pass.
 
-**Progress tracking:** After a task passes both reviews, update `implementation-plan.md`: change `- [ ] Task N` to `- [x] Task N`. This enables cross-session recovery — a new session can skip completed tasks.
+**Progress tracking:** After a task passes both reviews, update `implementation-plan.md`:
+1. Add test summary under the task:
+   ```markdown
+   - [x] Task N: [description]
+     **Tests:**
+     - ✓ [test case 1]
+     - ✓ [test case 2]
+     **Test file:** `path/to/test.file`
+     **Commit:** [SHA]
+   ```
+2. Mark task checkbox as `[x]`
+
+This enables cross-session recovery — a new session can skip completed tasks and see what was tested.
 
 ## When to Use
 
@@ -159,7 +171,16 @@ Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
 [Get git SHAs, dispatch code quality reviewer]
 Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
 
-[Mark Task 1 complete]
+[Update implementation-plan.md for Task 1:]
+- [x] Task 1: Hook installation script
+  **Tests:**
+  - ✓ Install hook to user config directory
+  - ✓ Handle existing hook with --force flag
+  - ✓ Reject invalid hook paths
+  - ✓ Create config directory if missing
+  - ✓ Verify hook permissions after install
+  **Test file:** `tests/hook-install.test.ts`
+  **Commit:** a7981ec
 
 Task 2: Recovery modes
 
@@ -193,7 +214,19 @@ Implementer: Extracted PROGRESS_INTERVAL constant
 [Code reviewer reviews again]
 Code reviewer: ✅ Approved
 
-[Mark Task 2 complete]
+[Update implementation-plan.md for Task 2:]
+- [x] Task 2: Recovery modes
+  **Tests:**
+  - ✓ Verify detects all 4 issue types
+  - ✓ Repair fixes detected issues
+  - ✓ Progress reporting every 100 items
+  - ✓ Verify returns exit code 0 when clean
+  - ✓ Verify returns exit code 1 when issues found
+  - ✓ Repair creates backup before changes
+  - ✓ Handle empty database gracefully
+  - ✓ Large dataset performance (10k items)
+  **Test file:** `tests/recovery.test.ts`
+  **Commit:** 3df7661
 
 ...
 
