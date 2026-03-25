@@ -72,7 +72,7 @@ If subagents are unavailable, the workflow is **blocked** — not degraded.
 
 ### Stage 2: Doc Scan
 
-**Rule:** Must dispatch doc-scanner subagent for large features. Main agent does NOT do document scanning inline.
+**Rule:** Must dispatch doc-scanner subagent using `doc-scanner-prompt.md` for large features. Main agent does NOT do document scanning inline.
 
 ## Verification Checks
 

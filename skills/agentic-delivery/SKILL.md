@@ -66,7 +66,15 @@ Analyze the user's request and classify:
 
 ### Stage 2: Doc Scan
 
-Dispatch `doc-scanner` subagent to generate project context.
+Dispatch doc-scanner subagent using `doc-scanner-prompt.md` to generate project context.
+
+**调用方式：**
+```
+Task tool:
+  description: "Scan project context"
+  prompt: [content from doc-scanner/doc-scanner-prompt.md]
+  subagent_type: "Explore"
+```
 
 **Strategy:** "Trust but Verify" - Read external docs as claims, verify critical assertions (tech stack, architecture) via code sampling, trust verified info while discarding contradictions.
 
@@ -80,6 +88,8 @@ Dispatch `doc-scanner` subagent to generate project context.
 **Output:** `docs/<project>/project-context.md` (with verification markers)
 **Cost:** ~300 tokens (verified) or ~2000 tokens (code-only fallback)
 **Lifecycle:** Dispose after completion.
+
+**See:** `doc-scanner/doc-scanner-prompt.md` for complete dispatch template
 
 **⚠️ SUBAGENT LIFECYCLE REMINDER:**
 - **Codex:** After doc-scanner returns, immediately call `close_agent(agent_id)`
@@ -349,7 +359,17 @@ Exceeds → escalate to user.
 - Each review-driven fix creates a separate fix commit
 - A task is complete only after Spec Compliance and Code Quality both pass
 
-**After reviews pass:** Dispatch `doc-syncer` subagent to update `docs/<project>/<feature>/changelog.md`.
+**After reviews pass:** Dispatch doc-syncer subagent using `doc-syncer-prompt.md` to update `docs/<project>/<feature>/changelog.md`.
+
+**调用方式：**
+```
+Task tool:
+  description: "Update changelog"
+  prompt: [content from doc-syncer/doc-syncer-prompt.md with filled parameters]
+  subagent_type: "general-purpose"
+```
+
+**See:** `doc-syncer/doc-syncer-prompt.md` for complete dispatch template
 
 **⚠️ SUBAGENT LIFECYCLE REMINDER:**
 - **After each reviewer returns:** Close immediately (Codex: `close_agent(agent_id)`; Claude Code: auto)
@@ -407,7 +427,7 @@ Intent → Bug Fix
 
 | Subagent | Receives | Does NOT receive |
 |----------|----------|-----------------|
-| Doc Scanner | Project root, scan targets, template | User requirements, design docs |
+| Doc Scanner (doc-scanner-prompt.md) | Project root, scan targets, output path | User requirements, design docs |
 | Spec Reviewer | Design doc path, review checklist | Project code, plan |
 | Plan Reviewer | Plan path, design doc path | Code details |
 | Implementer (backend) | Task text, backend conventions, API schema | Frontend code/conventions, other tasks |
@@ -415,7 +435,7 @@ Intent → Bug Fix
 | Spec Compliance Reviewer | Task requirements, implementer report, git diff (checkpoint commit) | Other tasks, global context |
 | Code Quality Reviewer | Git diff (BASE_SHA..HEAD_SHA), task description | Requirements doc, other tasks |
 | Fix Agent | Review report + relevant files from the latest checkpoint (Minor) or spec only (Critical) | Other tasks, global context |
-| Doc Syncer | Task description, changed files, changelog template | Code details, review process |
+| Doc Syncer (doc-syncer-prompt.md) | Task description, changed files, changelog template, date | Code details, review process |
 
 **Anti-patterns:**
 - Do NOT let subagent read plan file — paste task text into prompt
