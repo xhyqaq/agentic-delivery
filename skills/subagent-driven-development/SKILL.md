@@ -222,11 +222,89 @@ Use the least powerful model that can handle each role to conserve cost and incr
 - Touches multiple files with integration concerns → standard model
 - Requires design judgment or broad codebase understanding → most capable model
 
+---
+
+## Review Track Selection (Smart Routing)
+
+**BEFORE starting task implementation**, analyze each task to select the appropriate review track.
+
+Use the `review-fix-strategy` skill's Track Selection criteria:
+
+**Fast Track** (Code Quality only):
+- Single file < 50 lines
+- No new API/interface
+- No architecture changes
+- Pure function/utility
+→ Skip spec review, only code quality review
+
+**Standard Track** (Spec + Code Quality):
+- Multi-file changes
+- New API/business logic
+- Typical feature work
+→ Full two-stage review
+
+**Heavy Track** (Spec + Code + Integration):
+- Cross-domain (frontend + backend)
+- Architecture changes
+- Security-sensitive
+→ Three-stage review including integration check
+
+### Track Assignment Process
+
+```
+Before Task 1 implementation:
+1. Read task description
+2. Count affected files
+3. Estimate lines changed
+4. Check for API changes
+5. Check for cross-domain
+6. Assign track: Fast/Standard/Heavy
+7. Log assignment with reasoning
+8. Store track in task metadata
+```
+
+### Example Track Assignment
+
+```markdown
+**Review Track Assignments:**
+
+Task 1: Add input validation → Fast Track
+  Reason: Single file (validators.ts), ~30 lines, pure utility
+
+Task 2: User profile API → Standard Track
+  Reason: 3 files (route/controller/service), new REST API
+
+Task 3: Payment checkout → Heavy Track
+  Reason: Cross-domain (frontend form + backend processor), security-sensitive
+```
+
+### Using Track During Review
+
+When dispatching reviewers:
+
+```
+if (task.track == "Fast"):
+    skip spec_reviewer
+    dispatch code_quality_reviewer only
+    max_rounds = 1
+
+elif (task.track == "Standard"):
+    dispatch spec_reviewer → code_quality_reviewer
+    max_rounds = 2
+
+elif (task.track == "Heavy"):
+    dispatch spec_reviewer → code_quality_reviewer → integration_reviewer
+    max_rounds = 3
+```
+
 ## Handling Implementer Status
 
-Implementer subagents report one of four statuses. Handle each appropriately:
+Implementer subagents report one of four statuses. Handle each appropriately based on the task's review track.
 
-**DONE:** Proceed to spec compliance review.
+**DONE:** Proceed to review based on track:
+- Fast Track → Code Quality Review only
+- Standard Track → Spec Compliance Review first
+- Heavy Track → Spec Compliance Review first
 
 **DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
 
@@ -243,8 +321,9 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 ## Prompt Templates
 
 - `./implementer-prompt.md` - Dispatch implementer subagent
-- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
-- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+- `./unified-reviewer-prompt.md` - **RECOMMENDED:** Dispatch unified reviewer (spec + quality in one call)
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent (if using sequential strategy)
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent (if using sequential strategy)
 - `./integration-reviewer-prompt.md` - Dispatch integration reviewer subagent (for multi-domain plans)
 
 ## Integration Review (for Multi-Domain Plans)

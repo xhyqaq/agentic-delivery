@@ -157,10 +157,51 @@ Before entering Stage 5, verify:
 - `implementation-plan.md` exists and contains tasks
 - You have read and parsed all tasks from the plan
 
-**Orchestrator responsibilities:**
+**Stage 5A: Review Track Selection (NEW - Smart Routing)**
+
+BEFORE dispatching any implementers, analyze each task to assign appropriate review track:
+
+1. **Read all tasks** from implementation plan
+2. **For each task**, analyze:
+   - Number of files affected
+   - Estimated lines changed
+   - Whether it creates new APIs
+   - Whether it modifies architecture
+   - Domain scope (frontend/backend/both)
+   - Security sensitivity
+3. **Assign track** using review-fix-strategy criteria:
+   - Fast Track: Code Quality only (skips spec review)
+   - Standard Track: Spec + Code Quality (default)
+   - Heavy Track: Spec + Code + Integration
+4. **Log assignments** with reasoning
+5. **Store track metadata** for use in Stage 6
+
+**Example track assignment output:**
+
+```markdown
+**Review Track Assignments:**
+
+Task 1: Add validation helper → Fast Track
+  - Single file (utils/validation.ts), ~35 lines
+  - No API changes, pure utility
+  - Review: Code Quality only
+
+Task 2: User authentication API → Standard Track
+  - 3 files (routes/controller/service), ~150 lines
+  - New REST API endpoints
+  - Review: Spec Compliance → Code Quality
+
+Task 3: Payment integration → Heavy Track
+  - Cross-domain (frontend checkout form + backend payment processor)
+  - Security-sensitive (handles payment credentials)
+  - Review: Spec Compliance → Code Quality → Integration
+```
+
+**Stage 5B: Orchestrator responsibilities:**
 1. Extract ALL tasks with full text from plan (do NOT make subagent read plan file)
 2. Route by dependency: independent tasks → parallel, dependent tasks → sequential
 3. Construct minimum-context prompt per subagent (see Minimum Context §below)
+4. Include assigned review track in task metadata for Stage 6
 
 **Implementer receives:**
 - Task full text (copy-pasted, not file path)
@@ -172,7 +213,7 @@ Before entering Stage 5, verify:
 
 | Status | Action |
 |--------|--------|
-| DONE | Proceed to Stage 6 review |
+| DONE | Proceed to Stage 6 review (using assigned track) |
 | DONE_WITH_CONCERNS | Evaluate concerns, then review or address first |
 | NEEDS_CONTEXT | Provide missing context, re-dispatch |
 | BLOCKED | Assess: context gap → supplement; too complex → split task; plan wrong → back to Stage 4 |
@@ -196,6 +237,32 @@ If multiple implementers ran in parallel, verify their commits merge cleanly:
 
 ### Stage 6: Review Loop
 
+**Three review strategies based on task track:**
+
+#### Strategy A: Fast Track (Code Quality Only)
+
+For simple tasks (single file < 50 lines, pure utility):
+
+```
+Implementer returns DONE
+       │
+       ▼
+  Code Quality Review ONLY (skip spec review)
+       │
+       ├── Pass → Mark task complete → Doc Sync → next task
+       └── Fail → Fix (max 1 round) → re-review or escalate
+```
+
+**Cost:** 1 subagent call per task
+**Max rounds:** 1 (simple tasks should pass quickly)
+**When to use:** Tasks assigned Fast Track in Stage 5A
+
+#### Strategy B: Standard Track (Spec + Code Quality)
+
+For typical feature tasks (multi-file, new APIs, business logic):
+
+**Option B1: Sequential Two-Stage Review (Original)**
+
 Per-task, in strict order:
 
 ```
@@ -212,9 +279,70 @@ Implementer returns DONE
        └── Fail → Fix (see review-fix-strategy) → re-review
 ```
 
-**Order is mandatory:** Spec Compliance FIRST, then Code Quality. No point reviewing quality if it doesn't meet spec.
+**Cost:** 2 subagent calls per task (minimum)
+**Max rounds:** 2
+**When to use:** Exceptionally complex tasks where separate detailed reviews add value
 
-**Max rounds:** 3 per review stage. Exceeds → escalate to user.
+**Option B2: Unified Review (Optimized - RECOMMENDED)**
+
+Per-task:
+
+```
+Implementer returns DONE
+       │
+       ▼
+  Unified Reviewer (single subagent, two internal stages)
+       │
+       ├── Stage 1 (Spec) ✅ + Stage 2 (Quality) ✅ → approve
+       ├── Stage 1 (Spec) ❌ → skip Stage 2 → fix_spec_first
+       ├── Stage 1 (Spec) ✅ + Stage 2 (Quality) ❌ → fix_quality
+       └── Both fail → fix_both
+       │
+       ▼
+  (if issues) Fix → Unified Re-review → ...
+       │
+       ▼
+  (if approved) Mark task complete → Doc Sync → next task
+```
+
+**Cost:** 1 subagent call per task (minimum)
+**Max rounds:** 2
+**Performance:** ~40% faster than Strategy B1 (halves review overhead)
+**Quality:** Same standards (internal two-stage check preserved)
+
+**Default:** Use Option B2 (Unified Review) for standard tasks.
+
+#### Strategy C: Heavy Track (Spec + Code + Integration)
+
+For complex cross-domain or security-sensitive tasks:
+
+```
+Implementer returns DONE
+       │
+       ▼
+  Unified Reviewer (Spec + Code Quality)
+       │
+       ├── Pass → Integration Review (subagent)
+       │              │
+       │              ├── Pass → Mark task complete → Doc Sync → next task
+       │              └── Fail → Fix integration → re-verify
+       │
+       └── Fail → Fix → re-review
+```
+
+**Cost:** 2 subagent calls per task (unified + integration)
+**Max rounds:** 3 (complexity warrants more attempts)
+**When to use:** Tasks assigned Heavy Track in Stage 5A (cross-domain, architecture changes, security-sensitive)
+
+---
+
+**Order is preserved in all strategies:** Spec Compliance FIRST (if applicable), then Code Quality. No point reviewing quality if it doesn't meet spec.
+
+**Max rounds by track:**
+- Fast Track: 1 round
+- Standard Track: 2 rounds
+- Heavy Track: 3 rounds
+Exceeds → escalate to user.
 
 **Commit strategy:**
 - Implementer creates a checkpoint commit after implementation and local verification

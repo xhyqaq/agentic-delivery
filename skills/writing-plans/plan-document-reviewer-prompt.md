@@ -33,6 +33,68 @@ Task tool (general-purpose):
     | Spec Alignment | Plan covers spec requirements, no major scope creep |
     | Task Decomposition | Tasks have clear boundaries, steps are actionable |
     | Buildability | Could an engineer follow this plan without getting stuck? |
+    | **Test Strategy (CRITICAL)** | **Every task has Test Strategy section with Coverage Targets, Test Framework, Test File** |
+    | **Test Expectations (CRITICAL)** | **Every task has ≥ 1 Happy Path + ≥ 2 Edge Cases + ≥ 2 Error Cases** |
+
+    ## Test Strategy Requirements (NEW - MANDATORY)
+
+    **For each task, verify:**
+
+    1. **Test Strategy section exists** with all required fields:
+       - Test Type (Unit/Integration/E2E)
+       - Coverage Targets (Line ≥ 80%, Branch ≥ 75%, Function ≥ 90%)
+       - Test Framework specified
+       - Test File path provided
+
+    2. **Test Expectations are complete**:
+       - ≥ 1 Happy Path test (normal case)
+       - ≥ 2 Edge Cases tests (boundary values, empty input, etc.)
+       - ≥ 2 Error Cases tests (TypeError, ValueError, etc.)
+       - Tests use actual test code, not abstract descriptions
+
+    3. **Quality Gates defined**:
+       - Linter requirements (0 errors, warnings < 5)
+       - Type Check requirements
+       - Security requirements
+
+    **If any task is missing Test Strategy → Flag as CRITICAL issue.**
+
+    **Example of insufficient test expectations:**
+    ```
+    ❌ BAD:
+    # Test case 1: Normal case
+    # Test case 2: Edge case
+    # Test case 3: Error case
+
+    (Too abstract, no actual test code)
+    ```
+
+    **Example of good test expectations:**
+    ```
+    ✅ GOOD:
+    # 1. Happy Path
+    test('should return user when valid ID'):
+        result = getUser(1)
+        assert result.id == 1
+
+    # 2. Edge Case 1: Empty database
+    test('should return null when user not found'):
+        result = getUser(999)
+        assert result == null
+
+    # 2. Edge Case 2: Boundary value
+    test('should handle MAX_SAFE_INTEGER'):
+        result = getUser(Number.MAX_SAFE_INTEGER)
+        assert result == null
+
+    # 3. Error Case 1: Invalid type
+    test('should throw TypeError for string ID'):
+        expect(() => getUser('abc')).toThrow(TypeError)
+
+    # 3. Error Case 2: Negative ID
+    test('should throw RangeError for negative ID'):
+        expect(() => getUser(-1)).toThrow(RangeError)
+    ```
 
     ## Calibration
 

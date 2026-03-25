@@ -9,10 +9,140 @@ Decide HOW to fix reviewer-reported issues based on severity. Not all problems d
 
 ## When to Use
 
-- Called by `agentic-delivery` at Stage 6 when any reviewer (Spec Compliance or Code Quality) returns issues
-- The orchestrator (main agent) evaluates severity and routes accordingly
+- Called by `agentic-delivery` at Stage 5 (before implementation) for Review Track Selection
+- Called at Stage 6 when any reviewer returns issues to decide fix approach
+- The orchestrator (main agent) evaluates task complexity and severity to route accordingly
 
 ## Decision Flow
+
+### Part 1: Review Track Selection (Stage 5 - before implementation)
+
+Analyze each task to determine appropriate review strategy based on complexity.
+
+```
+Task ready for implementation
+       │
+       ▼
+  Analyze task characteristics
+       │
+       ├── Simple task (Fast Track)
+       │     • Single file < 50 lines
+       │     • No new API/interface
+       │     • No architecture changes
+       │     • Pure function/utility
+       │     → Review: Code Quality ONLY
+       │     → Estimated time: 1x
+       │
+       ├── Standard task (Standard Track)
+       │     • Multiple files
+       │     • New API/business logic
+       │     • Typical feature work
+       │     → Review: Spec Compliance → Code Quality
+       │     → Estimated time: 2x
+       │
+       └── Complex task (Heavy Track)
+             • Cross-domain integration (frontend + backend)
+             • Architecture changes
+             • Security-sensitive code
+             • Complex multi-module coordination
+             → Review: Spec Compliance → Code Quality → Integration
+             → Estimated time: 3x
+```
+
+#### Track Selection Criteria
+
+**Fast Track - Code Quality Only**
+
+Conditions (ALL must be true):
+- Single file modification < 50 lines
+- No new public APIs or interfaces
+- No architecture or design pattern changes
+- Pure logic/utility implementation
+- No cross-module dependencies
+
+Rationale: Spec is clear and minimal. Code quality is the only risk.
+
+**Standard Track - Spec + Code Quality**
+
+Conditions (ANY is true):
+- Multi-file changes
+- New API definitions
+- Business logic changes
+- Database schema modifications
+- Component interface changes
+
+Rationale: Default path. Spec compliance ensures correctness, code quality ensures maintainability.
+
+**Heavy Track - Spec + Code + Integration**
+
+Conditions (ANY is true):
+- Changes span frontend AND backend
+- Architecture pattern changes (e.g., adding new middleware layer)
+- Security-sensitive operations (auth, permissions, data encryption)
+- Complex multi-module coordination
+- External service integration
+
+Rationale: Integration issues are high-risk. Extra verification prevents runtime failures.
+
+#### Auto-Detection Algorithm
+
+```
+function selectReviewTrack(task):
+    // Extract task metadata
+    files = task.affected_files
+    lines_changed = task.estimated_lines
+    has_new_api = task.creates_api
+    has_architecture_change = task.modifies_architecture
+    domains = task.domains // ['frontend', 'backend', 'database']
+    is_security_sensitive = task.security_sensitive
+
+    // Heavy Track checks (highest priority)
+    if (domains.length >= 2):
+        return "Heavy" // Cross-domain
+    if (has_architecture_change):
+        return "Heavy" // Architecture change
+    if (is_security_sensitive):
+        return "Heavy" // Security-critical
+
+    // Fast Track checks (only if very simple)
+    if (files.length == 1 and
+        lines_changed < 50 and
+        not has_new_api and
+        not has_architecture_change):
+        return "Fast" // Simple utility
+
+    // Default to Standard Track
+    return "Standard"
+```
+
+#### Track Assignment Logging
+
+When assigning tracks, log the decision:
+
+```markdown
+**Review Track Assignment:**
+
+Task 1: Add validation helper → Fast Track
+  - Single file (utils/validation.ts), 35 lines
+  - No API changes
+  - Pure utility function
+
+Task 2: User authentication API → Standard Track
+  - 3 files (routes, controller, service)
+  - New public API
+  - Business logic
+
+Task 3: Payment integration → Heavy Track
+  - Cross-domain (frontend checkout + backend payment service)
+  - Security-sensitive (payment credentials)
+  - External API integration
+```
+
+---
+
+### Part 2: Fix Strategy Selection (Stage 6 - when review fails)
+
+When reviewer returns issues, decide the fix approach.
 
 ```
 Reviewer returns issues
@@ -100,8 +230,11 @@ After ANY fix (Minor, Important, or Critical), a NEW reviewer subagent MUST revi
 
 ### Max rounds
 
-- **3 rounds per review stage** (Spec Compliance and Code Quality counted separately)
-- After 3 failed rounds → force escalate to user
+- **Max rounds per review stage** depends on track:
+  - Fast Track: 1 round (simple tasks should pass quickly)
+  - Standard Track: 2 rounds
+  - Heavy Track: 3 rounds (complexity warrants more attempts)
+- After max rounds exceeded → force escalate to user
 - Escalation includes: all review reports from all rounds + all fix attempt summaries
 
 ### Escalation format
@@ -131,11 +264,31 @@ After ANY fix (Minor, Important, or Critical), a NEW reviewer subagent MUST revi
 
 ## What NOT to Do
 
+- Do NOT use the same review track for all tasks — analyze complexity first
+- Do NOT skip track selection at Stage 5 — it optimizes review efficiency
+- Do NOT override track selection without good reason — trust the criteria
 - Do NOT always use the same fix approach — severity determines strategy
 - Do NOT skip re-review after fix — ever
 - Do NOT let Critical issues be patched — reimplementation or redesign
-- Do NOT exceed 3 rounds without escalating — infinite loops waste resources
+- Do NOT exceed max rounds without escalating — infinite loops waste resources
 - Do NOT give original code to Critical fix subagent — it biases toward the same mistakes
+
+## Performance Impact
+
+**Example: 10-task feature**
+
+Without smart routing (all Standard Track):
+- 10 tasks × 2 reviews = 20 review calls
+- Total time: ~20 minutes
+
+With smart routing:
+- 3 Fast Track tasks × 1 review = 3 calls
+- 6 Standard Track tasks × 2 reviews = 12 calls
+- 1 Heavy Track task × 3 reviews = 3 calls
+- Total: 18 review calls (~10% reduction)
+- Time saved: ~2 minutes + reduced fix rounds
+
+**Key benefit:** Fast Track tasks fail faster (1 round vs 2), reducing wasted fix attempts.
 
 ## Lifecycle
 

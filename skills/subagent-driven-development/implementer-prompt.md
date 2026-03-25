@@ -83,46 +83,147 @@ Task tool (general-purpose):
     The controller can provide more context, re-dispatch with a more capable model,
     or break the task into smaller pieces.
 
-    ## Before Reporting Back: Self-Review
+    ## Before Reporting Back: Mandatory Pre-Submission Checklist
 
-    Review your work with fresh eyes. Ask yourself:
+    YOU MUST complete this checklist before reporting DONE. Report each item's status in your response.
 
-    **Completeness:**
-    - Did I fully implement everything in the spec?
-    - Did I miss any requirements?
-    - Are there edge cases I didn't handle?
+    **Spec Compliance Check:**
+    - [ ] All requirements from task description are implemented (list each one: ✅ done / ⚠️ concern / ❌ missed)
+    - [ ] No extra features added beyond spec (✅ clean / ⚠️ added minor / ❌ over-built)
+    - [ ] All edge cases mentioned in spec are handled (list each one: ✅ handled / ❌ missed)
+    - [ ] API contracts match spec exactly (field names, types, status codes)
 
-    **Quality:**
-    - Is this my best work?
-    - Are names clear and accurate (match what things do, not how they work)?
-    - Is the code clean and maintainable?
+    **Code Quality Check:**
+    - [ ] No magic numbers (✅ all extracted to constants with clear names / ⚠️ found N)
+    - [ ] No TODO/FIXME/XXX comments left in code (✅ clean / ❌ found N)
+    - [ ] No debug code (console.log, print statements, commented code) (✅ clean / ❌ found N)
+    - [ ] Naming matches project conventions (check existing code) (✅ consistent / ⚠️ unsure)
+    - [ ] All new functions/classes have single, clear purpose (✅ yes / ⚠️ concern)
+    - [ ] Error handling is complete (not just happy path) (✅ yes / ⚠️ partial)
 
-    **Discipline:**
-    - Did I avoid overbuilding (YAGNI)?
-    - Did I only build what was requested?
-    - Did I follow existing patterns in the codebase?
+    **Testing Check:**
+    - [ ] All core paths tested (not just happy path) (✅ yes / ⚠️ partial)
+    - [ ] Edge cases from spec have test coverage (✅ yes / ❌ missed N)
+    - [ ] Tests actually PASS (not just written) (✅ all pass / ❌ N failures)
+    - [ ] Test names clearly describe what they verify (✅ yes / ⚠️ some unclear)
+
+    **Integration Check (if applicable):**
+    - [ ] If task has dependencies, interfaces match (✅ verified / ⚠️ assumed / N/A)
+    - [ ] If task provides APIs, response format matches spec (✅ exact match / ⚠️ close / N/A)
+    - [ ] If task consumes APIs, error codes are handled (✅ all / ⚠️ some / N/A)
+
+    **Format your checklist report like this:**
+    ```
+    ## Pre-Submission Checklist Results
+
+    **Spec Compliance:**
+    - ✅ Requirement 1: User authentication
+    - ✅ Requirement 2: Token validation
+    - ✅ No extra features
+    - ✅ Edge case: expired token → handled
+    - ✅ Edge case: malformed token → handled
+
+    **Code Quality:**
+    - ✅ No magic numbers (TOKEN_EXPIRY = 3600)
+    - ✅ No debug code
+    - ⚠️ Found 1 TODO (line 45: "optimize this loop") - marked as DONE_WITH_CONCERNS
+    - ✅ Naming consistent with existing auth/ module
+    - ✅ Single purpose: validateToken() only validates, not logs
 
     **Testing:**
-    - Do tests actually verify behavior (not just mock behavior)?
-    - Did I follow TDD if required?
-    - Are tests comprehensive?
+    - ✅ 8/8 tests pass
+    - ✅ Core paths: valid/invalid/expired/malformed tokens
+    - ✅ Test names: "should reject expired token with 401"
 
-    If you find issues during self-review, fix them now before reporting.
+    **Integration:**
+    - ✅ AuthService.validateToken() matches interface from Task 1
+    - ✅ Returns {valid: boolean, userId?: string} as per spec
+    - N/A No APIs consumed
+    ```
+
+    **If you find issues during checklist:** Fix them now before reporting. If you cannot fix (e.g., architectural decision needed), report as DONE_WITH_CONCERNS or BLOCKED.
+
+    **Why this matters:** Your self-review is the first line of defense. Catching issues now saves 2-3 review rounds later. Be honest - if you're unsure about something, flag it.
 
     ## Report Format
 
     When done, report:
-    - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - **What you implemented:** (brief summary)
-    - **Tests executed:** (list each test case with result, e.g., "✓ Valid input → 200 response", "✓ Invalid token → 401 error")
-    - **Test file:** (path to test file, e.g., `tests/auth.test.ts`)
-    - **Test results:** (all passed? any failures?)
-    - **Checkpoint commit:** (SHA)
-    - **Files changed:** (list)
-    - Self-review findings (if any)
-    - Any issues or concerns
 
-    Use DONE_WITH_CONCERNS if you completed the work but have doubts about correctness.
-    Use BLOCKED if you cannot complete the task. Use NEEDS_CONTEXT if you need
-    information that wasn't provided. Never silently produce work you're unsure about.
+    **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+
+    **What you implemented:** (brief summary)
+
+    **Checkpoint Commit:** abc123def
+
+    **Files Changed:**
+    - src/user.ts (new, 120 lines)
+    - src/user.test.ts (new, 180 lines)
+
+    ---
+
+    ## Test Verification Data (NEW - Machine Verifiable)
+
+    **Test Execution Output:**
+    ```
+    Test Suites: 1 passed, 1 total
+    Tests:       5 passed, 5 total
+    Time:        1.2s
+
+    ✓ should return user when valid ID (8ms)
+    ✓ should handle empty database (5ms)
+    ✓ should handle ID at boundary (6ms)
+    ✓ should throw TypeError for invalid ID type (3ms)
+    ✓ should throw RangeError for negative ID (4ms)
+    ```
+
+    **Coverage Report:**
+    ```
+    File      | Line % | Branch % | Func % | Status
+    ----------|--------|----------|--------|--------
+    user.ts   | 85.7%  | 80.0%    | 100%   | ✅ PASS
+    Target    | 80%    | 75%      | 90%    |
+    ```
+
+    **Linter Output:**
+    ```
+    ✓ No errors
+    ⚠ 1 warning:
+      - user.ts:23 - Consider extracting magic number
+    ```
+
+    **How to Reproduce:**
+    ```bash
+    git checkout abc123def
+    npm test src/user.test.ts --coverage
+    npm run lint src/user.ts
+    ```
+
+    ---
+
+    ## Pre-Submission Checklist Results
+
+    **Test Verification (AUTO-VERIFIED):**
+    - ✅ Tests pass: 5/5 ✓ (from test output above)
+    - ✅ Coverage: 85.7% line, 80.0% branch (from coverage report above)
+    - ⚠️ Linter: 1 warning (within threshold < 5)
+
+    **Spec Compliance (MANUAL):**
+    - ✅ Requirement 1: getUser function implemented
+    - ✅ Requirement 2: Error handling for invalid inputs
+    - ✅ No extra features
+
+    **Manual Quality Checks:**
+    - ✅ Naming consistent with existing codebase
+    - ✅ Single responsibility principle followed
+
+    **Issues or Concerns:**
+    - ⚠️ One linter warning about magic number (minor, can fix later)
+
+    **Status decision rules:**
+    - **DONE:** All checklist items ✅, confident in work
+    - **DONE_WITH_CONCERNS:** Mostly ✅ but found ⚠️ items that might need attention
+    - **BLOCKED:** Found ❌ items that require architectural decisions or more context
+    - **NEEDS_CONTEXT:** Missing information needed to complete checklist
+
+    Never report DONE if you have ⚠️ or ❌ items without explaining them.
 ```

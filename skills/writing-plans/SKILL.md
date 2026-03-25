@@ -92,17 +92,46 @@ def function(input: InputType) -> OutputType:
     """
 ```
 
+**Test Strategy:**
+- **Test Type**: Unit | Integration | E2E
+- **Coverage Targets**:
+  - Line Coverage: ≥ 80%
+  - Branch Coverage: ≥ 75%
+  - Function Coverage: ≥ 90%
+- **Test Framework**: Jest | Vitest | Pytest | Go test | etc.
+- **Test File**: `tests/exact/path/to/test.py`
+
 **Test Expectations:**
 ```python
-# Test case 1: Normal case
-function(valid_input) → expected_output
+# 1. Happy Path (required)
+test('should return expected output for valid input'):
+    result = function(valid_input)
+    assert result == expected_output
+    assert result.status == "success"
 
-# Test case 2: Edge case
-function(edge_input) → edge_output
+# 2. Edge Cases (required, ≥ 2 cases)
+test('should handle empty input'):
+    result = function("")
+    assert result == default_value
 
-# Test case 3: Error case
-function(invalid_input) → raises SpecificError
+test('should handle boundary value'):
+    result = function(MAX_VALUE)
+    assert result.is_valid == True
+
+# 3. Error Cases (required, ≥ 2 cases)
+test('should raise TypeError for invalid type'):
+    with pytest.raises(TypeError):
+        function(invalid_type_input)
+
+test('should raise SpecificError for out of range'):
+    with pytest.raises(SpecificError):
+        function(out_of_range_value)
 ```
+
+**Quality Gates:**
+- Linter: 0 errors, warnings < 5
+- Type Check: 100% pass
+- Security: No critical/high vulnerabilities
 
 **Steps:**
 
@@ -126,6 +155,16 @@ function(invalid_input) → raises SpecificError
 
 ## Remember
 - Exact file paths always
+- **Test Strategy is mandatory** for every task:
+  - Define Test Type (Unit/Integration/E2E)
+  - Set Coverage Targets (Line ≥ 80%, Branch ≥ 75%, Function ≥ 90%)
+  - Specify Test Framework and Test File path
+  - Define Quality Gates (Linter, Type Check, Security)
+- **Test Expectations must include 3 categories**:
+  - Happy Path (≥ 1 test)
+  - Edge Cases (≥ 2 tests)
+  - Error Cases (≥ 2 tests)
+  - Use specific test code, not abstract descriptions
 - **Interface contracts and test expectations** (NOT complete implementations)
   - Define what functions should do (signature + behavior)
   - Show test expectations (input → expected output)
@@ -136,7 +175,7 @@ function(invalid_input) → raises SpecificError
   - Defining type interfaces or data structures
 - Exact commands with expected output
 - In execution plans, "commit" means a review checkpoint commit unless explicitly stated otherwise
-- Task checkboxes (`- [ ]`) are used for cross-session progress tracking. After a task completes both review stages, the orchestrator adds a test summary section before marking steps as complete:
+- Task checkboxes (`- [ ]`) are used for cross-session progress tracking. After a task completes test verification, the orchestrator adds a test summary section before marking steps as complete:
   ```markdown
   ### Task N: [Component Name]
 
@@ -145,6 +184,7 @@ function(invalid_input) → raises SpecificError
   - ✓ [test case 2]
   **Test file:** `path/to/test.file`
   **Commit:** [SHA]
+  **Coverage:** Line 85%, Branch 80%, Function 100%
 
   **Files:**
   ...
