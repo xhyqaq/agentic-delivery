@@ -1,5 +1,15 @@
 # Integration Reviewer Prompt Template
 
+**LIFECYCLE NOTICE (for dispatcher):**
+- This is a **stateless, single-use** subagent
+- **After this subagent returns its result:**
+  - **Codex:** You MUST call `close_agent(agent_id)` immediately
+  - **Claude Code:** Auto-closed on return (no action needed)
+- **Do NOT keep this subagent active** after processing result
+- If you need this role again later: re-dispatch a fresh instance
+
+---
+
 Use this template when dispatching an integration reviewer subagent for multi-domain plans (e.g., frontend + backend).
 
 **Purpose:** Verify that implementations from different domains can integrate successfully

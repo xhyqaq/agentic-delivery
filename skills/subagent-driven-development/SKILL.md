@@ -111,6 +111,102 @@ digraph process {
 }
 ```
 
+---
+
+## Lifecycle Management in Practice
+
+**After every subagent dispatch, you MUST follow this sequence:**
+
+```
+Dispatch subagent
+    ↓
+Wait for result (blocks until complete)
+    ↓
+Process result (extract status, files, commits, concerns)
+    ↓
+✅ CLEANUP CHECKPOINT ✅
+    ├─ Codex: Execute close_agent(agent_id)
+    ├─ Claude Code: No action (auto-closed)
+    └─ Log: "Closed [role] subagent"
+    ↓
+Update tracking (plan file, TodoWrite)
+    ↓
+Decide next action based on result
+    ↓
+(If need another subagent) Pre-dispatch check → Dispatch next
+```
+
+### Pre-dispatch Check (BEFORE every new dispatch)
+
+```markdown
+Before dispatching [role] subagent:
+- [ ] Active subagent count: [should be 0 or low]
+- [ ] Any completed subagents unclosed? → Close them now
+- [ ] Platform: [Codex/Claude Code/Unknown]
+- [ ] Cleanup mode: [explicit/auto/fallback]
+- [ ] Ready to dispatch: ✅
+```
+
+### Concrete Example: Task 1 Execution Lifecycle
+
+**Context:** Implementing Task 1 on Codex platform
+
+```
+Step 1: Dispatch implementer
+    → spawn_agent(prompt="Implement Task 1...") [Codex]
+    → agent_id = "agent_123"
+    → Log: "Dispatched implementer: agent_123"
+
+Step 2: Wait for implementer
+    → wait(agent_id="agent_123")
+    → Result: {status: DONE, files: [...], commit: "abc123", ...}
+
+Step 3: Process result
+    → Extract: status=DONE, files=[...], commit="abc123"
+    → Update TodoWrite: Task 1 status = "implemented, awaiting review"
+
+Step 4: ✅ CLEANUP CHECKPOINT ✅
+    → close_agent("agent_123") [Codex]
+    → Log: "Closed implementer: agent_123"
+    → Active count: 0
+
+Step 5: Pre-dispatch check (before spec reviewer)
+    → Active count: 0 ✅
+    → No completed unclosed ✅
+    → Ready to dispatch spec reviewer ✅
+
+Step 6: Dispatch spec reviewer
+    → spawn_agent(prompt="Review Task 1...") [Codex]
+    → agent_id = "agent_456"
+    → Log: "Dispatched spec_reviewer: agent_456"
+
+[Repeat Steps 2-5 for spec reviewer...]
+
+Step 7: Spec review result = Pass
+    → Close spec reviewer (agent_456)
+    → Pre-dispatch check before code quality reviewer
+    → Dispatch code quality reviewer
+
+[Repeat for code quality reviewer...]
+
+Step 8: Code quality review result = Pass
+    → Close code quality reviewer
+    → Mark Task 1 complete
+    → Update plan file: [x] Task 1
+    → Pre-dispatch check before Task 2 implementer
+    → Dispatch Task 2 implementer
+
+[Continue to next task...]
+```
+
+**Key observations:**
+- Every subagent is closed **immediately** after processing its result
+- Pre-dispatch check runs **before every new dispatch**
+- Active subagent count stays at 0 between dispatches
+- Audit log shows clear dispatch → close pairs
+
+---
+
 ## Model Selection
 
 Use the least powerful model that can handle each role to conserve cost and increase speed.
@@ -362,6 +458,10 @@ Done!
 - Let implementer self-review replace actual review (both are needed)
 - **Start code quality review before spec compliance is ✅** (wrong order)
 - Move to next task while either review has open issues
+- **Skip subagent cleanup after processing result (Codex: missing close_agent)**
+- **Dispatch new subagent without pre-dispatch cleanup check**
+- **Keep completed subagents open "just in case" (all subagents are stateless)**
+- **Wait until dispatch fails before cleanup (reactive, not proactive)**
 
 **If subagent asks questions:**
 - Answer clearly and completely

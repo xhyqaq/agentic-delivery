@@ -120,17 +120,199 @@ assert not implementing_inline, "If you wrote code yourself, you violated Stage 
 
 ## Subagent Lifecycle
 
-**Rule:** Close completed subagents promptly. Do not let finished subagents occupy session slots.
+**HARD RULE:** Close completed subagents immediately after processing their result. Do not let finished subagents occupy session slots.
 
-Session-level subagent slots are limited. If you wait until the session hits its limit before cleaning up, you will be forced to close subagents reactively — causing unnecessary delays and failed dispatches.
+Session-level subagent slots are limited. Failure to close subagents promptly will cause:
+- Dispatch failures when slot limit is reached
+- Unnecessary delays and user frustration
+- Violation of this workflow's core principle
 
-**Policy:**
-1. After a subagent returns its result and you have processed it, close it immediately
-2. Do NOT keep completed subagents open "in case you need them again" — all subagents are stateless; re-dispatch is cheap
-3. Before dispatching a new subagent, check if any completed subagents can be closed first
-4. If dispatch fails due to session limit, close all completed subagents and retry
+---
 
-**Applies to all subagent types:** doc-scanner, implementer, spec reviewer, code quality reviewer, fix agent, doc-syncer, plan reviewer.
+### Mandatory Lifecycle Policy
+
+**Platform-Specific Cleanup Requirements:**
+
+| Platform | Dispatch Tool | Cleanup Requirement | Timing |
+|----------|---------------|---------------------|--------|
+| **Codex** | `spawn_agent` | **MUST call `close_agent(agent_id)`** | Immediately after processing result, before next dispatch |
+| **Claude Code** | `Task` tool | Auto-closes on return (no action needed) | N/A (automatic) |
+| **Unknown** | Generic | Assume explicit close needed | Immediately after processing |
+
+**Step-by-Step Enforcement:**
+
+**1. After a subagent returns its result:**
+   - ✅ Extract all information from result (status, files, commits, concerns)
+   - ✅ Update tracking (plan file, TodoWrite, session notes)
+   - ✅ **Close subagent (platform-specific):**
+     - **Codex:** Execute `close_agent(agent_id)` — this is MANDATORY, not optional
+     - **Claude Code:** No action needed (Task tool auto-closed on return)
+   - ✅ Remove from active subagent list (Codex only)
+   - ✅ Log: "Closed [role] subagent [agent_id/Task]"
+
+**2. Before dispatching a new subagent:**
+   - ✅ Check active subagent count (Codex: track manually; Claude Code: should be 0)
+   - ✅ If any completed subagents remain unclosed: **close them all immediately**
+   - ✅ If active count ≥ (limit - 1): **emergency cleanup** (see below)
+   - ✅ Log: "Pre-dispatch check: [count] active subagents"
+
+**3. Do NOT:**
+   - ❌ Keep completed subagents open "in case you need them again" — all subagents are stateless; re-dispatch is cheap
+   - ❌ Wait until dispatch fails before cleaning up — that's reactive, not proactive
+   - ❌ Skip cleanup because "only one more dispatch" — always clean immediately
+
+---
+
+### Emergency Cleanup (If Dispatch Fails)
+
+**Trigger:** `spawn_agent` or `Task` dispatch fails with session limit error.
+
+**Root Cause:** Completed subagents not closed promptly (violation of policy).
+
+**Recovery Flow (STOP and execute immediately):**
+
+```
+1. STOP current operation
+2. Audit active subagents:
+   - Codex: List all agent_ids in active tracking list
+   - Claude Code: Investigate anomaly (should not happen with auto-cleanup)
+3. Identify completed vs in-progress:
+   - Completed = result already processed, no longer waiting
+   - In-progress = waiting for result (should be rare)
+4. Close all completed subagents:
+   - Codex: close_agent(id) for each
+   - Claude Code: Report bug if this happens
+5. Log: "Emergency cleanup: closed [N] subagents at [Stage/Task]"
+6. Retry original dispatch
+7. If still fails: Escalate to user with diagnostic info
+```
+
+**Prevention (Better than Recovery):**
+
+Maintain a `completed_subagents` list (Codex) or rely on Task auto-cleanup (Claude Code). After processing each result, immediately close and clear.
+
+---
+
+### Platform Detection
+
+At Stage 1 (Intent Recognition) or Stage 4→5 transition, detect platform:
+
+```python
+# Pseudo-code
+if tool_exists("Task") and tool_exists("Skill"):
+    platform = "Claude Code"
+    cleanup_mode = "auto"
+elif tool_exists("spawn_agent") and tool_exists("close_agent"):
+    platform = "Codex"
+    cleanup_mode = "explicit"
+else:
+    platform = "Unknown"
+    cleanup_mode = "fallback_explicit"
+
+log(f"Platform: {platform}, Cleanup mode: {cleanup_mode}")
+```
+
+Store this in session context. Use it to decide cleanup behavior.
+
+---
+
+### Lifecycle Applies to ALL Subagent Types
+
+**No exceptions.** Every subagent must be closed after its result is processed:
+
+- ✅ Doc Scanner → close after `project-context.md` written
+- ✅ Spec Reviewer → close after review report processed
+- ✅ Plan Reviewer → close after review report processed
+- ✅ Implementer → close after implementation result processed
+- ✅ Spec Compliance Reviewer → close after review decision made
+- ✅ Code Quality Reviewer → close after review decision made
+- ✅ Fix Agent → close after fix result processed
+- ✅ Doc Syncer → close after changelog updated
+- ✅ Integration Reviewer → close after integration report processed
+
+**Lifecycle tracking (Codex example):**
+
+```python
+# Pseudo-code for main agent (Codex)
+
+active_subagents = {}       # {agent_id: (role, dispatch_time)}
+completed_subagents = []    # [agent_id, ...] (audit trail)
+
+def dispatch_and_close(role, prompt):
+    # Pre-dispatch cleanup
+    cleanup_completed_subagents()
+
+    # Dispatch
+    agent_id = spawn_agent(prompt=prompt)
+    active_subagents[agent_id] = (role, now())
+    log(f"Dispatched {role}: {agent_id}")
+
+    # Wait
+    result = wait(agent_id)
+
+    # Process
+    info = parse_result(result)
+
+    # Close IMMEDIATELY
+    close_agent(agent_id)
+    completed_subagents.append(agent_id)  # Audit trail
+    del active_subagents[agent_id]
+    log(f"Closed {role}: {agent_id}")
+
+    return info
+
+def cleanup_completed_subagents():
+    """Close all subagents in completed list."""
+    for agent_id in completed_subagents:
+        try:
+            close_agent(agent_id)
+        except:
+            pass  # Already closed, ignore
+    completed_subagents.clear()
+    log(f"Pre-dispatch cleanup: completed list cleared")
+```
+
+---
+
+### Audit Trail (Required)
+
+Each session MUST log:
+- Every subagent dispatch (role, agent_id/Task description, timestamp)
+- Every subagent close (agent_id, timestamp, platform method)
+- Every pre-dispatch cleanup check (active count, closed count)
+- Any emergency cleanup events
+
+**Example log:**
+```
+[Stage 5 Start] Platform: Codex, Cleanup mode: explicit
+[Task 1] Dispatched implementer: agent_123
+[Task 1] Closed implementer: agent_123 (Codex close_agent)
+[Task 1] Dispatched spec_reviewer: agent_456
+[Task 1] Closed spec_reviewer: agent_456 (Codex close_agent)
+[Task 1] Dispatched code_reviewer: agent_789
+[Task 1] Closed code_reviewer: agent_789 (Codex close_agent)
+[Task 2] Pre-dispatch check: 0 active subagents
+[Task 2] Dispatched implementer: agent_890
+...
+```
+
+---
+
+### Violation Detection
+
+**Red flags in session log:**
+- Multiple dispatches without intervening close operations (Codex)
+- Active subagent count increasing over time (Codex)
+- Dispatch failure due to session limit (any platform)
+- Emergency cleanup triggered (indicates policy violation)
+
+**If violation detected:**
+1. Stop execution
+2. Audit all active subagents
+3. Close all completed ones
+4. Report to user: "Subagent lifecycle policy violated at [location]. Emergency cleanup executed."
+
+**Applies to all subagent types:** doc-scanner, implementer, spec reviewer, code quality reviewer, fix agent, doc-syncer, plan reviewer, integration reviewer.
 
 ## Parallel Task Merge Conflicts
 

@@ -81,6 +81,37 @@ When agents return:
 - Run full test suite
 - Integrate all changes
 
+### 5. Close All Parallel Subagents
+
+**After integrating results from all parallel subagents:**
+
+- **Codex:** Call `close_agent(agent_id)` for **each** parallel subagent
+- **Claude Code:** Auto-closed when each Task returns (no action needed)
+- **Critical:** Close all parallel agents before dispatching next batch
+- **Why:** Parallel dispatch quickly exhausts slots if not cleaned up promptly
+
+**Pattern (Codex):**
+```python
+# Dispatch parallel agents
+agent_ids = []
+for task in tasks:
+    agent_id = spawn_agent(prompt=f"Fix {task}...")
+    agent_ids.append(agent_id)
+
+# Wait for all
+results = [wait(aid) for aid in agent_ids]
+
+# Process all results
+summaries = [parse_result(r) for r in results]
+
+# ⚠️ CRITICAL: Close all parallel agents
+for agent_id in agent_ids:
+    close_agent(agent_id)
+    log(f"Closed parallel agent: {agent_id}")
+
+# Now safe to continue
+```
+
 ## Agent Prompt Structure
 
 Good agent prompts are:
@@ -122,6 +153,10 @@ Return: Summary of what you found and what you fixed.
 
 **❌ Vague output:** "Fix it" - you don't know what changed
 **✅ Specific:** "Return summary of root cause and changes"
+
+**❌ Forgetting cleanup:** Dispatch 3 parallel agents, forget to close them
+**✅ Cleanup:** Close all parallel agents after integrating results (Codex: `close_agent` for each; Claude Code: auto)
+**⚠️ Impact of no cleanup:** Session slots exhaust quickly with parallel dispatch - 3 dispatches = 3 slots occupied
 
 ## When NOT to Use
 

@@ -81,6 +81,11 @@ Dispatch `doc-scanner` subagent to generate project context.
 **Cost:** ~300 tokens (verified) or ~2000 tokens (code-only fallback)
 **Lifecycle:** Dispose after completion.
 
+**⚠️ SUBAGENT LIFECYCLE REMINDER:**
+- **Codex:** After doc-scanner returns, immediately call `close_agent(agent_id)`
+- **Claude Code:** Auto-closed when Task returns (no action needed)
+- See `runtime-policies.md` § Subagent Lifecycle and `references/codex-tools.md` for details
+
 ### Stage 3: Requirement Analysis & Design
 
 Execute brainstorming process (main agent, NOT subagent):
@@ -174,6 +179,12 @@ Before entering Stage 5, verify:
 
 **REQUIRED SUB-SKILL:** Use subagent-driven-development skill for dispatch pattern.
 
+**⚠️ SUBAGENT LIFECYCLE REMINDER:**
+- **After each implementer returns:** Close immediately (Codex: `close_agent(agent_id)`; Claude Code: auto)
+- **Before next dispatch:** Run pre-dispatch cleanup check (see `references/codex-tools.md`)
+- **Failure to close promptly** → slot exhaustion → dispatch failures → emergency cleanup required
+- All implementer subagents are stateless; re-dispatch is cheap if needed again
+
 **After parallel batch completes:**
 If multiple implementers ran in parallel, verify their commits merge cleanly:
 1. Check for merge conflicts (lock files, barrel exports, auto-generated files)
@@ -211,6 +222,13 @@ Implementer returns DONE
 - A task is complete only after Spec Compliance and Code Quality both pass
 
 **After reviews pass:** Dispatch `doc-syncer` subagent to update `docs/<project>/<feature>/changelog.md`.
+
+**⚠️ SUBAGENT LIFECYCLE REMINDER:**
+- **After each reviewer returns:** Close immediately (Codex: `close_agent(agent_id)`; Claude Code: auto)
+- **Before next dispatch:** Pre-dispatch cleanup check
+- **Reviewer lifecycle:** Spec reviewer → close → Code quality reviewer → close → Doc syncer → close
+- **Integration reviewer:** Close after integration report processed
+- See `runtime-policies.md` § Subagent Lifecycle for enforcement rules
 
 **After all tasks complete:**
 - If plan contains frontend + backend tasks → Dispatch Integration Reviewer subagent
@@ -305,6 +323,10 @@ Skills use Claude Code tool names. See `references/codex-tools.md` for Codex equ
 - Start coding before completing upstream stages (for large features)
 - **Implement tasks inline when executing Stage 5 (MUST use subagents)**
 - **Silently fall back to single-agent mode without reporting blockers**
+- **Skip subagent cleanup after processing result (Codex: missing `close_agent`)**
+- **Dispatch new subagent without pre-dispatch cleanup check**
+- **Keep completed subagents open "just in case" (all subagents are stateless)**
+- **Wait until dispatch fails before cleanup (reactive, not proactive)**
 - Skip review stages
 - Parallelize tasks that share files
 - Pass full context to subagents
