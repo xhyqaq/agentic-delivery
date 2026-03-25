@@ -68,8 +68,17 @@ Analyze the user's request and classify:
 
 Dispatch `doc-scanner` subagent to generate project context.
 
-**Input:** Project root path, scan targets, doc template.
-**Output:** `docs/<project>/project-context.md`
+**Strategy:** "Trust but Verify" - Read external docs as claims, verify critical assertions (tech stack, architecture) via code sampling, trust verified info while discarding contradictions.
+
+**Process:**
+1. Pre-check: Document freshness (skip if > 1 year old)
+2. Read & Verify: Sample 10-20 files to validate claims
+3. Fallback: Code-only scan if docs contradicted/missing
+4. Generate: `project-context.md` with verification status (✅ Verified / ⚠️ Partial / ❌ Contradicted)
+
+**Input:** Project root path
+**Output:** `docs/<project>/project-context.md` (with verification markers)
+**Cost:** ~300 tokens (verified) or ~2000 tokens (code-only fallback)
 **Lifecycle:** Dispose after completion.
 
 ### Stage 3: Requirement Analysis & Design
