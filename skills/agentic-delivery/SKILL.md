@@ -53,20 +53,66 @@ Analyze the user's request and classify:
 
 | Type | Signal | Path |
 |------|--------|------|
-| Large Feature | Multi-module, multi-file, needs design, architecture impact | Full Pipeline (Stage 1-7) |
+| Incremental Feature | 依赖已有功能、扩展现有模块、用户明确提到"在XX基础上/基于XX/扩展XX" | Incremental Pipeline (复用目录) |
+| Large Feature | 全新功能、多模块、架构影响、无依赖现有功能 | Full Pipeline (新建目录) |
 | Small Change | Single file/function, clear scope | Fast Path (Stage 5-7 only) |
 | Bug Fix | Explicit error behavior, needs root cause analysis | Debug Path |
 
-**Cross-session reuse:** Check `docs/<project>/<feature>/` for existing artifacts:
-- `design-spec.md` exists → skip Stage 3
-- `implementation-tracker.md` exists → skip Stage 4
-- `implementation-tracker.md` has tasks marked `[x]` → skip completed tasks in Stage 5, resume from first unchecked task
+**Intent Recognition Process:**
 
-## Full Pipeline (Large Feature)
+1. **Check for existing feature dependency (FIRST):**
+   ```python
+   # Pseudo-code
+   existing_features = glob("docs/*/")  # ["docs/skills-market/", "docs/user-auth/", ...]
+
+   for feature_dir in existing_features:
+       feature_name = extract_name(feature_dir)  # "skills-market"
+
+       # Signal 1: User explicitly mentions existing feature
+       if feature_name in user_request.lower():
+           return classify_as_incremental(feature_name, feature_dir)
+
+       # Signal 2: Semantic similarity (keywords, domain overlap)
+       if is_semantically_related(user_request, feature_dir):
+           # Ask user to confirm
+           confirm = ask_user(f"Does this relate to existing '{feature_name}' feature?")
+           if confirm:
+               return classify_as_incremental(feature_name, feature_dir)
+
+   # No dependency found → New feature or Fast path
+   return classify_by_scope(user_request)  # Large Feature or Small Change
+   ```
+
+2. **Incremental vs New Feature decision tree:**
+   ```
+   用户需求提到现有功能名称？
+   ├─ Yes → Incremental Feature
+   └─ No → 检查语义相关性
+       ├─ 高相关（同一领域、扩展现有 API）→ Ask user → Incremental Feature
+       └─ 低相关（全新领域）→ Large Feature
+   ```
+
+**Cross-session reuse:**
+
+**For New Features (Large Feature path):**
+- Create new directory: `docs/<new-feature>/`
+- Generate fresh `design-spec.md`
+- Generate fresh `implementation-tracker.md`
+
+**For Incremental Features (Incremental Pipeline):**
+- Reuse directory: `docs/<existing-feature>/`
+- Update existing `design-spec.md` (Living Document strategy - see Stage 3)
+- Create timestamped tracker: `implementation-tracker-YYYY-MM-DD.md`
+- Check existing artifacts:
+  - `design-spec.md` exists → **UPDATE** in Stage 3 (not skip!)
+  - Previous trackers exist → create new timestamped tracker
+  - Previous tracker has unchecked tasks → warn user about incomplete work
+
+## Full Pipeline (Large Feature + Incremental Feature)
 
 ### Phase 0: Project Context Preparation (Blocking Prerequisite)
 
-**Trigger:** Large feature path (full pipeline)
+**Trigger:** Large feature path OR Incremental feature path (both use full pipeline)
 
 **Responsibility:** Ensure `docs/project-context.md` exists before design begins
 
@@ -157,6 +203,10 @@ Task tool:
 **Prerequisite:**
 - ✅ Phase 0 complete, `docs/project-context.md` is ready
 
+**Path fork based on intent type:**
+
+#### Path A: New Feature (Large Feature)
+
 Execute brainstorming process (main agent, NOT subagent):
 
 1. **Read `project-context.md`** (mandatory first step)
@@ -167,14 +217,174 @@ Execute brainstorming process (main agent, NOT subagent):
    - Ask sequentially only when later questions depend on earlier answers
 3. Propose 2-3 approaches with trade-offs, give recommendation
 4. Present design in sections, get user approval per section
-5. Write to `docs/<project>/<feature>/design-spec.md`
+5. **Write to** `docs/<project>/<new-feature>/design-spec.md`
 6. Dispatch Spec Reviewer subagent → review loop (max 3 rounds)
 7. User reviews written spec before proceeding
+
+#### Path B: Incremental Feature
+
+Execute brainstorming process with existing context:
+
+1. **Read `project-context.md`** (mandatory first step)
+2. **Read existing `design-spec.md`** (understand current design)
+   - Understand existing architecture, API contracts, data models
+   - Identify which sections will be affected by the increment
+3. Follow the `brainstorming` questioning strategy for the increment
+   - Focus questions on the new/changed parts
+   - Reference existing design where relevant
+4. Propose 2-3 approaches for the increment (considering existing architecture)
+5. Present design in sections, get user approval per section
+6. **Update `design-spec.md` using Living Document Strategy** (see below)
+7. Dispatch Spec Reviewer subagent → review loop (max 3 rounds)
+8. User reviews updated spec before proceeding
+
+**Living Document Strategy (Incremental Feature):**
+
+```python
+# Pseudo-code
+def update_design_spec(existing_spec_path, increment_design):
+    """
+    Update design-spec.md for incremental feature
+
+    Returns: path to design doc (may be new file if exception case)
+    """
+    existing_spec = read_file(existing_spec_path)
+    existing_size = count_lines(existing_spec)
+
+    # Exception 1: Breaking change → Create version doc
+    if increment_design.is_breaking_change:
+        # Breaking change examples:
+        # - REST API → GraphQL migration
+        # - Database schema redesign
+        # - Authentication system overhaul
+        new_spec_path = existing_spec_path.replace(".md", "-v2.md")
+        write_file(new_spec_path, increment_design.full_content)
+        log(f"⚠️ Breaking change detected, created {new_spec_path}")
+        log(f"   Old design preserved in {existing_spec_path}")
+        return new_spec_path
+
+    # Exception 2: Large independent subsystem + doc too large → Create module doc
+    if increment_design.is_large_subsystem and existing_size > 1000:
+        # Large subsystem examples:
+        # - New recommendation engine (>5 sections, independent)
+        # - Payment processing module
+        # - Analytics dashboard subsystem
+        module_name = increment_design.module_name
+        module_spec_path = f"docs/<feature>/design-spec-{module_name}.md"
+        write_file(module_spec_path, increment_design.full_content)
+
+        # Add reference to main spec
+        append_to_spec(existing_spec_path,
+            f"\n\n## {module_name.title()} Module\n\n"
+            f"See [design-spec-{module_name}.md](./design-spec-{module_name}.md) for details.\n"
+        )
+
+        log(f"✅ Created module doc {module_spec_path}")
+        log(f"   Reference added to main spec")
+        return module_spec_path
+
+    # Default: Update in place (Living Document - 活文档)
+    updated_spec = merge_increment(existing_spec, increment_design)
+    write_file(existing_spec_path, updated_spec)
+
+    # Update changelog
+    update_changelog(
+        path=f"docs/<feature>/changelog.md",
+        entry={
+            "date": today(),
+            "type": "Feature Increment",
+            "summary": increment_design.summary,
+            "sections_modified": increment_design.affected_sections
+        }
+    )
+
+    log(f"✅ Updated {existing_spec_path} (Living Document)")
+    log(f"   Changelog updated: changelog.md")
+    return existing_spec_path
+
+def merge_increment(existing_spec, increment_design):
+    """
+    Merge increment into existing spec
+
+    Strategy:
+    - If increment extends existing section → append to that section
+    - If increment adds new capability → add new section
+    - If increment modifies existing behavior → update relevant sections
+    """
+    # Parse existing spec structure
+    sections = parse_markdown_sections(existing_spec)
+
+    for new_section in increment_design.sections:
+        if new_section.name in sections:
+            # Extend existing section
+            sections[new_section.name] = extend_section(
+                sections[new_section.name],
+                new_section.content
+            )
+        else:
+            # Add new section
+            sections[new_section.name] = new_section.content
+
+    return rebuild_markdown(sections)
+
+def is_breaking_change(increment_design):
+    """
+    Detect breaking changes that require version doc
+
+    Signals:
+    - Migration keywords (REST→GraphQL, SQL→NoSQL)
+    - Incompatible API changes
+    - Data model redesign
+    - Authentication system changes
+    """
+    breaking_keywords = [
+        "migrate", "redesign", "overhaul", "replace",
+        "incompatible", "breaking change"
+    ]
+
+    description = increment_design.summary.lower()
+    return any(keyword in description for keyword in breaking_keywords)
+
+def is_large_subsystem(increment_design):
+    """
+    Detect large independent subsystem
+
+    Criteria:
+    - >5 major sections
+    - Standalone functionality
+    - Minimal coupling to existing code
+    """
+    return (
+        len(increment_design.sections) > 5 and
+        increment_design.independence_score > 0.7  # 70% independent
+    )
+```
+
+**Document Strategy Decision Criteria:**
+
+| Condition | Strategy | Output | Use Case |
+|-----------|----------|--------|----------|
+| Breaking change (REST→GraphQL, schema redesign) | Version Doc | `design-spec-v2.md` | Major architectural shift |
+| Large subsystem (>5 sections) + doc >1000 lines | Module Doc | `design-spec-<module>.md` | Independent large module |
+| Normal increment (新字段、新API、功能增强) | Living Doc | Update `design-spec.md` | **DEFAULT** |
+| Tiny change (single field, small patch) | Fast Path | Skip design stage | Trivial changes |
+
+**Why Living Document is default:**
+- ✅ Single source of truth (design-spec.md is always current)
+- ✅ Git provides history (can diff/revert any change)
+- ✅ changelog.md provides human-readable summary
+- ✅ Cross-session recovery simple (read one file, not N files)
+- ✅ Prevents document fragmentation
+- ✅ Aligns with how code evolves (files change, not multiply)
 
 **REQUIRED SUB-SKILL:** Follow brainstorming skill.
 `agentic-delivery` routes into this stage; `brainstorming` owns the detailed questioning method.
 
 ### Stage 4: Implementation Plan
+
+**Path fork based on intent type:**
+
+#### Path A: New Feature (Large Feature)
 
 Main agent writes detailed plan:
 
@@ -184,11 +394,37 @@ Main agent writes detailed plan:
 4. Mark task dependencies (parallel vs sequential)
 5. Dispatch Plan Reviewer subagent → if issues found, fix and escalate to user
 
+**Output:** `docs/<project>/<feature>/implementation-tracker.md`
+
+#### Path B: Incremental Feature
+
+Main agent writes incremental plan:
+
+1. **Analyze existing implementation** (read current codebase in affected areas)
+   - Understand current file structure
+   - Identify which files need modification
+   - Locate integration points
+2. Map file structure: which files to **modify** (prioritize) vs **create** (if needed)
+   - Prefer modifying existing files over creating new ones
+   - Create new files only when necessary
+3. Decompose into bite-sized tasks (2-5 min each)
+4. Mark dependencies with existing code
+5. Dispatch Plan Reviewer subagent → if issues found, fix and escalate to user
+
+**Output:** `docs/<project>/<feature>/implementation-tracker-<YYYY-MM-DD>.md`
+
+**Why timestamped tracker for increments:**
+- Each increment is a distinct batch of work (independent delivery unit)
+- Keeps historical record of what was done when
+- Avoids confusion between old and new tasks
+- Allows parallel increments on different dates (multiple teams/sessions)
+- Enables audit trail (which features were added in which increment)
+
+**Format example:** `implementation-tracker-2026-03-26.md`
+
 **Parallel constraint (HARD RULE):**
 > Tasks sharing ANY file MUST be sequential. Only tasks with zero file overlap may be parallel.
 > This is decided at plan time, NOT execution time.
-
-**Output:** `docs/<project>/<feature>/implementation-tracker.md`
 
 **REQUIRED SUB-SKILL:** Follow writing-plans skill.
 
@@ -947,12 +1183,61 @@ The following review strategies are **no longer recommended**:
 
 Main agent compiles delivery report:
 
-- Requirement type and total task count
+- Requirement type (New Feature / Incremental Feature / Small Change / Bug Fix)
+- Base feature (if incremental)
+- Total task count
 - Which tasks ran in parallel
 - Review rounds and fix count
 - All artifacts produced (docs, files changed)
 - File change list with descriptions
 - Lessons learned or optimization opportunities
+
+**For Incremental Features: Update changelog.md**
+
+After implementation completes, add entry to `docs/<feature>/changelog.md`:
+
+```markdown
+## [Increment] YYYY-MM-DD - <Short Description>
+
+### Added
+- New capability 1
+- New capability 2
+
+### Changed
+- Changed behavior in X
+- Enhanced Y to support Z
+
+### Design Changes
+- Updated sections in design-spec.md:
+  - Section A: <what changed>
+  - Section B: <what changed>
+
+### Implementation
+- Tasks completed: N
+- Review rounds: M
+- Files modified: X
+- Files created: Y
+- Implementation tracker: `implementation-tracker-2026-03-26.md`
+
+### Commits
+- feat: <commit 1 summary> (abc123)
+- feat: <commit 2 summary> (def456)
+```
+
+**Changelog format follows [Keep a Changelog](https://keepachangelog.com/) standard:**
+- **Added**: new features
+- **Changed**: changes in existing functionality
+- **Deprecated**: soon-to-be removed features
+- **Removed**: removed features
+- **Fixed**: bug fixes
+- **Security**: security fixes
+
+**Why changelog for increments:**
+- Provides human-readable summary of what changed
+- Links to implementation tracker for technical details
+- Tracks evolution of the feature over time
+- Helps future sessions understand feature history
+- Supplements Git commit history with context
 
 **NEW: Update project-context.md if needed**
 
